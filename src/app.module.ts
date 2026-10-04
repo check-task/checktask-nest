@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule } from './auth/auth.module';
+// import { AuthModule } from './auth/auth.module';
 import { JwtAuthModule } from './common/auth/jwt-auth.module';
 import { dataSourceOptions } from './common/database/data-source';
 import { RedisModule } from './common/redis/redis.module';
@@ -17,7 +17,7 @@ import { HealthModule } from './health/health.module';
       imports: undefined
     }),
     JwtAuthModule,
-    AuthModule,
+    // AuthModule,
     RedisModule,
     S3Module,
     HealthModule,
