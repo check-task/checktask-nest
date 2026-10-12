@@ -3,7 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { CustomException } from './custom.exception';
+import { BadRequestError, NotFoundError } from './custom.error';
 import { ErrorCode } from './error-code';
 import { GlobalExceptionFilter } from './error.filter';
 
@@ -17,28 +17,41 @@ describe('GlobalExceptionFilter', () => {
 
   beforeEach(() => vi.clearAllMocks());
 
-  it('CustomException은 상수풀의 코드와 메시지로 응답한다', () => {
-    filter.catch(new CustomException(ErrorCode.CONFLICT), host);
-    expect(status).toHaveBeenCalledWith(409);
+  it('CustomError는 지정한 상태 코드·errorCode·reason으로 응답한다', () => {
+    filter.catch(
+      new NotFoundError('TASK_NOT_FOUND', '요청한 과제가 존재하지 않습니다.'),
+      host,
+    );
+    expect(status).toHaveBeenCalledWith(404);
     expect(json).toHaveBeenCalledWith({
       resultType: 'FAIL',
-      code: 409,
-      errorCode: 'CONFLICT',
-      reason: '서버가 요청을 수행하는 중에 충돌 발생',
+      code: 404,
+      errorCode: 'TASK_NOT_FOUND',
+      reason: '요청한 과제가 존재하지 않습니다.',
       data: null,
     });
   });
 
-  it('CustomException에 메시지를 넘기면 기본 메시지를 덮어쓴다', () => {
+  it('CustomError에 인자를 생략하면 기본 errorCode·reason으로 응답한다', () => {
+    filter.catch(new NotFoundError(), host);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 404,
+        errorCode: 'NOT_FOUND',
+        reason: '리소스를 찾을 수 없습니다',
+      }),
+    );
+  });
+
+  it('CustomError의 data를 응답에 담는다', () => {
     filter.catch(
-      new CustomException(ErrorCode.NOT_FOUND, '게시글이 없습니다.'),
+      new BadRequestError('INVALID_DEADLINE', '마감일 오류', {
+        maxDate: '2026-12-31',
+      }),
       host,
     );
     expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        errorCode: 'NOT_FOUND',
-        reason: '게시글이 없습니다.',
-      }),
+      expect.objectContaining({ data: { maxDate: '2026-12-31' } }),
     );
   });
 
