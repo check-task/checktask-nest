@@ -5,7 +5,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
@@ -14,7 +14,7 @@ import { extname } from 'path';
 const PRESIGNED_EXPIRES_IN = 300;
 
 @Injectable()
-export class S3Service {
+export class S3Service implements OnModuleDestroy {
   private readonly client: S3Client;
   private readonly bucket: string;
 
@@ -63,5 +63,10 @@ export class S3Service {
     await this.client.send(
       new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
     );
+  }
+
+  // HTTP 연결(keep-alive 소켓)을 닫는다
+  onModuleDestroy() {
+    this.client.destroy();
   }
 }
