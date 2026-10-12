@@ -97,7 +97,10 @@ async createTask(@Body() dto: CreateTaskDto, @CurrentUser() user: UserPayload) {
 ```
 
 - 모든 예외는 `GlobalExceptionFilter`가 위 형식으로 변환합니다.
-- `reason`은 항상 문자열입니다. ValidationPipe의 메시지 배열은 `', '`로 이어 붙입니다.
+- `reason`은 항상 문자열입니다. DTO 검증 실패 메시지가 여러 개면 `', '`로 이어 붙입니다.
+- 아래 에러는 전역 설정이 자동으로 errorCode를 붙입니다. 직접 던지지 않습니다.
+  - DTO 검증 실패 → `VALIDATION_ERROR` (`validation-exception.factory.ts`)
+  - 토큰 없음 → `TOKEN_NOT_FOUND`, 토큰 만료 → `TOKEN_EXPIRED`, 그 외 토큰 검증 실패 → `UNAUTHORIZED` (`jwt-auth.guard.ts`)
 - 정의되지 않은 예외(500)는 내부 정보를 노출하지 않고 `INTERNAL_SERVER_ERROR`로 응답합니다.
 - **클라이언트는 `reason`(문구)이 아니라 `errorCode`로 분기합니다.** 문구는 바뀔 수 있습니다.
 
@@ -108,13 +111,16 @@ async createTask(@Body() dto: CreateTaskDto, @CurrentUser() user: UserPayload) {
 - 에러는 서비스에서 `src/common/response/error/custom.error.ts`의 **상태별 커스텀 에러**를 던집니다.
 - errorCode는 아래 [6. 에러 코드](#6-에러-코드) 표에 있는 값을 사용하고, 상태 코드에 맞는 클래스를 고릅니다. (예: `TASK_NOT_FOUND` → `NotFoundError`)
 
-| 클래스 | 상태 코드 | 기본 errorCode | 기본 reason |
+| 클래스 | 상태 코드 | 기본 errorCode | 받을 수 있는 errorCode |
 |---|---|---|---|
-| `BadRequestError` | 400 | `BAD_REQUEST` | 잘못된 요청입니다 |
-| `UnauthorizedError` | 401 | `UNAUTHORIZED` | 인증에 실패했습니다 |
-| `ForbiddenError` | 403 | `FORBIDDEN` | 접근 권한이 없습니다 |
-| `NotFoundError` | 404 | `NOT_FOUND` | 리소스를 찾을 수 없습니다 |
-| `InternalServerError` | 500 | `INTERNAL_SERVER_ERROR` | 서버 내부 오류가 발생했습니다 |
+| `BadRequestError` | 400 | `BAD_REQUEST` | `error-code.ts`에서 status가 400인 것 |
+| `UnauthorizedError` | 401 | `UNAUTHORIZED` | status가 401인 것 |
+| `ForbiddenError` | 403 | `FORBIDDEN` | status가 403인 것 |
+| `NotFoundError` | 404 | `NOT_FOUND` | status가 404인 것 |
+| `InternalServerError` | 500 | `INTERNAL_SERVER_ERROR` | status가 500인 것 |
+
+- errorCode는 `error-code.ts`에 정의된 값만 받습니다. 오타나 상태 불일치(`new NotFoundError('INVALID_DATE')`)는 **컴파일 에러**가 납니다.
+- reason을 생략하면 `error-code.ts`의 기본 메시지로 응답합니다.
 
 ```ts
 // new XxxError(errorCode, reason, data)
@@ -128,8 +134,8 @@ throw new ForbiddenError(); // 인자를 생략하면 기본 errorCode·reason
 
 ### 에러 코드 추가 절차
 
-1. 아래 [6. 에러 코드](#6-에러-코드) 표에 상태 코드·errorCode·설명을 추가합니다.
-2. 노션 에러 코드 문서도 함께 업데이트합니다.
+1. `src/common/response/error/error-code.ts`에 `{ status, errorCode, message }`를 추가합니다. (추가해야 커스텀 에러에 넘길 수 있습니다)
+2. 아래 [6. 에러 코드](#6-에러-코드) 표와 노션 에러 코드 문서도 함께 업데이트합니다.
 
 ### HTTP 상태 코드
 
@@ -167,7 +173,7 @@ throw new ForbiddenError(); // 인자를 생략하면 기본 errorCode·reason
 
 ### 공통 (HTTP 상태 기본값)
 
-커스텀 에러를 인자 없이 던지거나, Nest 내장 예외(ValidationPipe·인증 가드 등)·라우트 미존재일 때의 errorCode입니다.
+커스텀 에러를 인자 없이 던지거나, Nest 내장 예외·라우트 미존재·JSON 파싱 실패일 때의 errorCode입니다.
 
 | Status | errorCode | 설명 |
 |---|---|---|
