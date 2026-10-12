@@ -1,9 +1,8 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
-// 사용자 이름 읽기 데코레이터
+// 인증된 사용자 정보 (JwtStrategy.validate()의 반환값)
 export interface UserPayload {
-  id: string;
-  email: string;
+  id: number; // 기존 DB의 user_id(정수)
 }
 
 export const CurrentUser = createParamDecorator(
