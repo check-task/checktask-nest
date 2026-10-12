@@ -5,23 +5,29 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import basicAuth from 'express-basic-auth';
 import { AppModule } from './app.module';
 import { JwtAuthGuard } from './common/auth/guards/jwt-auth.guard';
+import { CORS_OPTIONS } from './common/config/cors.config';
+import { AppExpressAdapter } from './common/response/error/app-express.adapter';
+import { KstInterceptor } from './common/response/success/kst.interceptor';
 import { ResponseInterceptor } from './common/response/success/response.interceptor';
 import { GlobalExceptionFilter } from './common/response/error/error.filter';
+import { validationExceptionFactory } from './common/response/error/validation-exception.factory';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, new AppExpressAdapter());
   const config = app.get(ConfigService);
 
-  app.enableCors({ origin: config.get('ALLOWED_ORIGIN'), credentials: true });
+  app.enableCors(CORS_OPTIONS);
   app.useGlobalFilters(new GlobalExceptionFilter());
-  app.useGlobalInterceptors(new ResponseInterceptor());
-  // whitelist: DTO 미정의 필드 자동 제거
+  // 응답 처리는 등록 역순: KST 변환 → SUCCESS 래핑
+  app.useGlobalInterceptors(new ResponseInterceptor(), new KstInterceptor());
+  // whitelist: DTO 미정의 필드는 400 없이 조용히 제거 (레거시 zod와 동일, forbidNonWhitelisted는 쓰지 않음)
   // transform: 요청 값을 DTO 인스턴스로 변환 (@Type 형변환·필드 기본값 적용)
+  // exceptionFactory: 검증 실패를 VALIDATION_ERROR로 응답
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
       transform: true,
+      exceptionFactory: validationExceptionFactory,
     }),
   );
   app.useGlobalGuards(new JwtAuthGuard(app.get(Reflector))); // 전역 인증
@@ -30,14 +36,9 @@ async function bootstrap() {
 
   // 운영 환경에서는 Swagger 문서(UI·JSON·YAML)에 ID/비밀번호를 요구한다
   if (config.get('NODE_ENV') === 'production') {
-    const swaggerUser = config.get<string>('SWAGGER_USER');
-    const swaggerPassword = config.get<string>('SWAGGER_PASSWORD');
-    // 빈 값이면 빈 ID/비밀번호로 통과되므로 서버를 띄우지 않는다
-    if (!swaggerUser || !swaggerPassword) {
-      throw new Error(
-        '운영 환경에는 SWAGGER_USER, SWAGGER_PASSWORD가 필요합니다.',
-      );
-    }
+    // 운영에서 SWAGGER_USER·SWAGGER_PASSWORD는 env.validation.ts가 필수로 검사한다
+    const swaggerUser = config.getOrThrow<string>('SWAGGER_USER');
+    const swaggerPassword = config.getOrThrow<string>('SWAGGER_PASSWORD');
     app.use(
       ['/docs', '/docs-json', '/docs-yaml'],
       basicAuth({
