@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { S3Service } from './s3.service';
+import { S3Service } from '../../../../src/common/s3/s3.service';
 
 describe('S3Service', () => {
   let service: S3Service;

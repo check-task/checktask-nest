@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { RedisService } from './redis.service';
+import { RedisService } from '../../../../src/common/redis/redis.service';
 
 // 실제 Redis 서버 없이 검증하기 위해 ioredis 클라이언트를 목으로 대체한다
 const client = vi.hoisted(() => ({
