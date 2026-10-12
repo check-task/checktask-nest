@@ -1,7 +1,7 @@
-/**
- * 서비스에서 던지는 커스텀 에러. GlobalExceptionFilter가 FAIL 응답으로 변환한다.
- * @example throw new NotFoundError('TASK_NOT_FOUND', '요청한 과제가 존재하지 않습니다.');
- */
+// 기본 커스텀 에러 클래스
+// 서비스에서 던지면 GlobalExceptionFilter가 FAIL 응답으로 변환한다.
+// reason은 사용자에게 보여줄 문구(프론트 토스트), 에러 코드 표의 상세 설명은 필터가 detail_error로 채운다.
+// @example throw new NotFoundError('TASK_NOT_FOUND', '과제를 찾을 수 없습니다.');
 export class CustomError extends Error {
   constructor(
     public readonly statusCode: number,

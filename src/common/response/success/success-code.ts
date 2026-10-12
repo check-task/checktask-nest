@@ -9,12 +9,12 @@ export interface SuccessCodeDetail {
  * 성공·리다이렉트 응답 상수풀 (2xx·3xx).
  * @example
  * @Post()
- * @HttpCode(SuccessCode.CREATED.status)
+ * @HttpCode(SUCCESS_CODE.CREATED.status)
  * async create() {
- *   return { message: SuccessCode.CREATED.message, data };
+ *   return { message: SUCCESS_CODE.CREATED.message, data };
  * }
  */
-export const SuccessCode = {
+export const SUCCESS_CODE = {
   OK: {
     status: HttpStatus.OK,
     message: '서버가 요청을 성공적으로 처리',

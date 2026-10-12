@@ -1,22 +1,51 @@
+import {
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  NestInterceptor,
+  StreamableFile,
+} from '@nestjs/common';
+import { Observable, map } from 'rxjs';
+import { Stream } from 'stream';
+import { toKstString } from '../../utils/date.util';
+
+// 일반 객체로 복사하면 깨지는 값 (파일·바이너리·스트림·컬렉션)은 그대로 둔다
+const isPassThrough = (value: unknown): boolean =>
+  value instanceof StreamableFile ||
+  value instanceof Stream ||
+  value instanceof ArrayBuffer ||
+  ArrayBuffer.isView(value) || // Buffer·TypedArray
+  value instanceof Map ||
+  value instanceof Set;
+
+// 객체(Response DTO 클래스 포함)·배열을 재귀적으로 순회하며 Date만 KST 문자열로 바꾼 새 값을 만든다 (원본은 수정하지 않음)
+const convertDates = (value: unknown): unknown => {
+  if (value instanceof Date) {
+    // Invalid Date는 toISOString()이 예외를 던지므로 null로 응답한다
+    return Number.isNaN(value.getTime()) ? null : toKstString(value);
+  }
+  if (Array.isArray(value)) return value.map(convertDates);
+  if (isPassThrough(value)) return value;
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, v]) => [key, convertDates(v)]),
+    );
+  }
+  return value;
+};
+
 /**
- * 응답 객체의 모든 Date를 +9시간(KST)으로 변환하는 인터셉터
- *
- * [목적]
- * - 서버·DB는 UTC 기준으로 저장하고, 응답으로 나갈 때만 한국 시간(+09:00)으로 맞춘다.
- *
- * [동작]
- * - 컨트롤러 반환값(data)을 재귀적으로 순회한다. (객체·배열·중첩 객체 모두 포함)
- * - 값이 Date 인스턴스면 +9시간 한 값으로 교체한다.
- * - 원본 엔티티 객체를 직접 수정하지 않고 새 객체로 복사해서 반환한다.
- *
- * [등록]
- * - main.ts에서 ResponseInterceptor보다 먼저 실행되도록 등록한다.
- *   app.useGlobalInterceptors(new ResponseInterceptor(), new KstInterceptor());
- *   (인터셉터 응답 처리는 등록 역순으로 실행된다)
- *
- * [주의]
- * - Date를 +9시간 해도 JSON 직렬화 시 끝에 'Z'(UTC 표시)가 붙어 실제 의미와 달라진다.
- *   'YYYY-MM-DDTHH:mm:ss+09:00' 같은 문자열로 변환하는 방식도 함께 검토한다.
- * - DB 연결에 timezone: '+09:00'을 설정했다면 이중 변환되므로 둘 중 하나만 사용한다.
- * - 요청으로 들어오는 날짜(DTO)는 변환 대상이 아니다.
+ * 응답의 모든 Date를 '+09:00' 오프셋 문자열(KST)로 변환하는 인터셉터.
+ * 서버·DB는 UTC로 다루고, 응답으로 나갈 때만 KST로 맞춘다.
+ * ResponseInterceptor보다 뒤에 등록해 KST 변환 후 래핑되게 한다. (응답 처리는 등록 역순)
+ * @example app.useGlobalInterceptors(new ResponseInterceptor(), new KstInterceptor());
  */
+@Injectable()
+export class KstInterceptor implements NestInterceptor {
+  intercept(
+    _context: ExecutionContext,
+    next: CallHandler,
+  ): Observable<unknown> {
+    return next.handle().pipe(map(convertDates));
+  }
+}
