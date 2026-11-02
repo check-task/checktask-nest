@@ -20,6 +20,12 @@ export class RedisService implements OnModuleDestroy {
     else await this.client.set(key, value);
   }
 
+  // 키가 없을 때만 저장하고, 저장했으면 true를 반환한다. (SET NX EX — 여러 인스턴스 중 하나만 실행하는 락용)
+  async setIfNotExists(key: string, value: string, ttlSeconds: number) {
+    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  }
+
   get(key: string) {
     return this.client.get(key);
   }

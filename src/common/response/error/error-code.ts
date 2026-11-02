@@ -90,6 +90,11 @@ export const ERROR_CODE = {
     errorCode: 'INVALID_DEADLINE',
     message: '세부 과제의 마감일이 부모 과제의 마감일을 초과하여 설정됨',
   },
+  SUBTASK_NO_ASSIGNEE: {
+    status: HttpStatus.BAD_REQUEST,
+    errorCode: 'SUBTASK_NO_ASSIGNEE',
+    message: '담당자가 없는 세부 과제의 알림을 켜려고 시도함',
+  },
   TOKEN_NOT_FOUND: {
     status: HttpStatus.UNAUTHORIZED,
     errorCode: 'TOKEN_NOT_FOUND',
@@ -115,6 +120,11 @@ export const ERROR_CODE = {
     errorCode: 'FORBIDDEN_PERSONAL_TASK',
     message: '다른 사용자의 개인 과제에 접근하거나 수정하려고 시도함',
   },
+  FORBIDDEN_ALARM: {
+    status: HttpStatus.FORBIDDEN,
+    errorCode: 'FORBIDDEN_ALARM',
+    message: '다른 사용자의 알림에 접근하거나 수정하려고 시도함',
+  },
   USER_DELETED: {
     status: HttpStatus.FORBIDDEN,
     errorCode: 'USER_DELETED',
@@ -139,6 +149,16 @@ export const ERROR_CODE = {
     status: HttpStatus.NOT_FOUND,
     errorCode: 'ALARM_NOT_FOUND',
     message: '삭제하거나 읽음 처리하려는 대상 알림(Alarm)이 존재하지 않음',
+  },
+  FCM_TOKEN_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    errorCode: 'FCM_TOKEN_NOT_FOUND',
+    message: '푸시를 보낼 사용자의 디바이스(FCM) 토큰이 Redis에 존재하지 않음',
+  },
+  PUSH_SEND_FAILED: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    errorCode: 'PUSH_SEND_FAILED',
+    message: '외부 API(FCM) 연동 문제로 푸시 알림 발송에 실패함',
   },
   EMAIL_SEND_FAILED: {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
