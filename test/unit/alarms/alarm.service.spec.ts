@@ -106,12 +106,12 @@ describe('AlarmService', () => {
       ).rejects.toMatchObject({ errorCode: 'ALARM_NOT_FOUND' });
     });
 
-    it('다른 사용자의 알림이면 FORBIDDEN_ALARM이고 수정하지 않는다', async () => {
+    it('다른 사용자의 알림이면 ALARM_ACCESS_DENIED이고 수정하지 않는다', async () => {
       alarmRepository.findOne.mockResolvedValue({ ...alarm, userId: 2 });
       await expect(
         service.updateAlarmReadStatus(1, 10, true),
       ).rejects.toMatchObject({
-        errorCode: 'FORBIDDEN_ALARM',
+        errorCode: 'ALARM_ACCESS_DENIED',
         statusCode: 403,
       });
       expect(alarmRepository.update).not.toHaveBeenCalled();
@@ -217,6 +217,17 @@ describe('AlarmService', () => {
     });
   });
 
+  describe('updateTaskAlarmStatus', () => {
+    it('과제 참여자가 아니면 TASK_ACCESS_DENIED이고 값을 바꾸지 않는다', async () => {
+      taskRepository.findOne.mockResolvedValue({ id: 3, isAlarm: false });
+      memberRepository.existsBy.mockResolvedValue(false);
+      await expect(
+        service.updateTaskAlarmStatus(1, 3, true),
+      ).rejects.toMatchObject({ errorCode: 'TASK_ACCESS_DENIED' });
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+  });
+
   describe('updateSubTaskAlarmStatus', () => {
     const subTask = { id: 5, taskId: 3, isAlarm: false, title: '자료 조사' };
 
@@ -227,12 +238,12 @@ describe('AlarmService', () => {
       ).rejects.toMatchObject({ errorCode: 'SUBTASK_NOT_FOUND' });
     });
 
-    it('과제 참여자가 아니면 FORBIDDEN_TASK', async () => {
+    it('과제 참여자가 아니면 SUBTASK_ACCESS_DENIED', async () => {
       subTaskRepository.findOne.mockResolvedValue(subTask);
       memberRepository.existsBy.mockResolvedValue(false);
       await expect(
         service.updateSubTaskAlarmStatus(1, 5, true),
-      ).rejects.toMatchObject({ errorCode: 'FORBIDDEN_TASK' });
+      ).rejects.toMatchObject({ errorCode: 'SUBTASK_ACCESS_DENIED' });
     });
 
     it('담당자 없이 켜면 SUBTASK_NO_ASSIGNEE이고 값을 바꾸지 않는다', async () => {

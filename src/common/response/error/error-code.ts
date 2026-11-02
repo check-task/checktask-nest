@@ -120,9 +120,20 @@ export const ERROR_CODE = {
     errorCode: 'FORBIDDEN_PERSONAL_TASK',
     message: '다른 사용자의 개인 과제에 접근하거나 수정하려고 시도함',
   },
-  FORBIDDEN_ALARM: {
+  TASK_ACCESS_DENIED: {
     status: HttpStatus.FORBIDDEN,
-    errorCode: 'FORBIDDEN_ALARM',
+    errorCode: 'TASK_ACCESS_DENIED',
+    message: '과제 참여자가 아닌 사용자가 과제 알림 여부를 수정하려고 시도함',
+  },
+  SUBTASK_ACCESS_DENIED: {
+    status: HttpStatus.FORBIDDEN,
+    errorCode: 'SUBTASK_ACCESS_DENIED',
+    message:
+      '과제 참여자가 아닌 사용자가 세부 과제 알림 여부를 수정하려고 시도함',
+  },
+  ALARM_ACCESS_DENIED: {
+    status: HttpStatus.FORBIDDEN,
+    errorCode: 'ALARM_ACCESS_DENIED',
     message: '다른 사용자의 알림에 접근하거나 수정하려고 시도함',
   },
   USER_DELETED: {

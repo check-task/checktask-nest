@@ -301,7 +301,7 @@ export class AlarmService {
   /**
    * 세부 과제 알림 켜기/끄기. 켜면 담당자별 알림을 만들고, 끄면 아직 보내지 않은 알림을 지운다.
    * @throws NotFoundError(SUBTASK_NOT_FOUND) - 세부 과제가 없을 때
-   * @throws ForbiddenError(FORBIDDEN_TASK) - 과제 참여자가 아닐 때
+   * @throws ForbiddenError(SUBTASK_ACCESS_DENIED) - 과제 참여자가 아닐 때
    * @throws BadRequestError(SUBTASK_NO_ASSIGNEE) - 담당자 없는 세부 과제의 알림을 켤 때
    */
   async updateSubTaskAlarmStatus(
@@ -321,6 +321,7 @@ export class AlarmService {
     await this.assertTaskMember(
       subTask.taskId,
       userId,
+      'SUBTASK_ACCESS_DENIED',
       '해당 세부과제에 접근할 권한이 없습니다.',
     );
 
@@ -354,7 +355,7 @@ export class AlarmService {
    * 과제 알림 켜기/끄기. 켜면 참여자별 알림을 만들고, 끄면 아직 보내지 않은 알림을 지운다.
    * (레거시는 값만 바꾸고 알림은 그대로 발송했음)
    * @throws NotFoundError(TASK_NOT_FOUND) - 과제가 없을 때
-   * @throws ForbiddenError(FORBIDDEN_TASK) - 과제 참여자가 아닐 때
+   * @throws ForbiddenError(TASK_ACCESS_DENIED) - 과제 참여자가 아닐 때
    */
   async updateTaskAlarmStatus(
     userId: number,
@@ -368,6 +369,7 @@ export class AlarmService {
     await this.assertTaskMember(
       taskId,
       userId,
+      'TASK_ACCESS_DENIED',
       '해당 과제에 접근할 권한이 없습니다.',
     );
 
@@ -388,7 +390,7 @@ export class AlarmService {
    * @throws NotFoundError(USER_NOT_FOUND) - 사용자가 없을 때
    * @throws ForbiddenError(USER_DELETED) - 탈퇴한 사용자일 때
    * @throws NotFoundError(ALARM_NOT_FOUND) - 알림이 없을 때
-   * @throws ForbiddenError(FORBIDDEN_ALARM) - 다른 사용자의 알림일 때
+   * @throws ForbiddenError(ALARM_ACCESS_DENIED) - 다른 사용자의 알림일 때
    */
   async deleteAlarm(userId: number, alarmId: number): Promise<null> {
     await this.findActiveUser(
@@ -407,7 +409,7 @@ export class AlarmService {
   /**
    * 알림 읽음 처리
    * @throws NotFoundError(ALARM_NOT_FOUND) - 알림이 없을 때
-   * @throws ForbiddenError(FORBIDDEN_ALARM) - 다른 사용자의 알림일 때
+   * @throws ForbiddenError(ALARM_ACCESS_DENIED) - 다른 사용자의 알림일 때
    */
   async updateAlarmReadStatus(
     userId: number,
@@ -752,21 +754,22 @@ export class AlarmService {
     if (!alarm) throw new NotFoundError('ALARM_NOT_FOUND', notFoundReason);
     if (alarm.userId !== userId) {
       throw new ForbiddenError(
-        'FORBIDDEN_ALARM',
+        'ALARM_ACCESS_DENIED',
         '해당 알림에 접근할 권한이 없습니다.',
       );
     }
     return alarm;
   }
 
-  // 과제 참여자(owner 포함)인지 확인
+  // 과제 참여자(owner 포함)인지 확인. 에러 코드는 레거시대로 과제/세부 과제를 구분한다
   private async assertTaskMember(
     taskId: number,
     userId: number,
+    errorCode: 'TASK_ACCESS_DENIED' | 'SUBTASK_ACCESS_DENIED',
     reason: string,
   ): Promise<void> {
     const isMember = await this.memberRepository.existsBy({ taskId, userId });
-    if (!isMember) throw new ForbiddenError('FORBIDDEN_TASK', reason);
+    if (!isMember) throw new ForbiddenError(errorCode, reason);
   }
 
   // 과제별 진척도(%) — 완료된 세부 과제 수 / 전체 세부 과제 수 (세부 과제가 없으면 0)
