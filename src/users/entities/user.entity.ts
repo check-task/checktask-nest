@@ -17,6 +17,8 @@ import { Role } from '../role.enum';
   unique: true,
 })
 @Index('User_deleted_at_idx', ['deletedAt'])
+// 기본 키와 겹치지만 레거시 DB에 있는 unique 인덱스
+@Index('User_user_id_key', ['id'], { unique: true })
 export class User {
   @PrimaryGeneratedColumn({ name: 'user_id' })
   id: number;

@@ -3,7 +3,7 @@ import {
   Entity,
   Index,
   JoinColumn,
-  OneToOne,
+  ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from './user.entity';
@@ -29,7 +29,9 @@ export class UserAlarmSetting {
   @Column({ name: 'task_alarm', default: DEFAULT_ALARM_HOURS })
   taskAlarm: number;
 
-  @OneToOne(() => User, { onDelete: 'CASCADE', onUpdate: 'CASCADE' })
+  // 유저당 1개는 위 unique 인덱스가 보장한다.
+  // (@OneToOne은 DB에 없는 unique 제약을 따로 만들려고 해서 ManyToOne으로 둔다)
+  @ManyToOne(() => User, { onDelete: 'CASCADE', onUpdate: 'CASCADE' })
   @JoinColumn({
     name: 'user_id',
     foreignKeyConstraintName: 'UserAlarmSetting_user_id_fkey',
