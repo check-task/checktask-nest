@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -16,6 +17,8 @@ export const ALARM_TEXT_MAX_LENGTH = 50;
 
 // 기존 DB(Prisma)의 UserAlarm 테이블
 @Entity('UserAlarm')
+// 알림 목록·안 읽은 개수 조회용 (마이그레이션 AddUserAlarmIndex)
+@Index('UserAlarm_user_id_alarm_date_idx', ['userId', 'alarmDate'])
 export class UserAlarm {
   @PrimaryGeneratedColumn({ name: 'alarm_id' })
   id: number;
