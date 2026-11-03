@@ -7,6 +7,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { Folder } from '../../folders/folder.entity';
 import { User } from '../../users/entities/user.entity';
 import { Task } from './task.entity';
 
@@ -46,4 +47,12 @@ export class Member {
     foreignKeyConstraintName: 'Member_task_id_fkey',
   })
   task?: Task;
+
+  // 과제를 넣어 둔 폴더 (없으면 null)
+  @ManyToOne(() => Folder, { onDelete: 'RESTRICT', onUpdate: 'CASCADE' })
+  @JoinColumn({
+    name: 'folder_id',
+    foreignKeyConstraintName: 'Member_folder_id_fkey',
+  })
+  folder?: Folder | null;
 }
