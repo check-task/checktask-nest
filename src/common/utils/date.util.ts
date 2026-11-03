@@ -35,3 +35,12 @@ export const addDays = (date: Date, days: number): Date =>
 // N시간 뒤 (음수면 N시간 전) — 예: 마감 N시간 전 알림 시각 = addHours(deadline, -N)
 export const addHours = (date: Date, hours: number): Date =>
   new Date(date.getTime() + hours * HOUR_MS);
+
+/**
+ * KST 날짜 기준으로 from → to가 며칠 차이인지 반환한다. (시각은 무시)
+ * @example from = KST 20일 23:00, to = KST 21일 00:30 → 1
+ */
+export const diffKstDays = (from: Date, to: Date): number =>
+  Math.round(
+    (startOfKstDay(to).getTime() - startOfKstDay(from).getTime()) / DAY_MS,
+  );

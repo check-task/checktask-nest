@@ -9,7 +9,12 @@ import { FcmModule } from './common/fcm/fcm.module';
 import { MailModule } from './common/mail/mail.module';
 import { RedisModule } from './common/redis/redis.module';
 import { S3Module } from './common/s3/s3.module';
+import { AlarmModule } from './alarms/alarm.module';
+import { FolderModule } from './folders/folder.module';
 import { HealthModule } from './health/health.module';
+import { ReferenceModule } from './references/reference.module';
+import { TaskModule } from './tasks/task.module';
+import { UserModule } from './users/user.module';
 
 @Module({
   imports: [
@@ -25,6 +30,11 @@ import { HealthModule } from './health/health.module';
     FcmModule,
     MailModule,
     HealthModule,
+    UserModule,
+    FolderModule,
+    AlarmModule,
+    ReferenceModule,
+    TaskModule,
   ],
 })
 export class AppModule {}
