@@ -1,13 +1,21 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
   HttpCode,
   Param,
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   CurrentUser,
   type UserPayload,
@@ -15,13 +23,14 @@ import {
 import { SUCCESS_CODE } from '../common/response/success/success-code';
 import {
   CreateFolderDto,
+  DeleteFolderQueryDto,
   UpdateFolderDto,
   UpdateFolderPriorityDto,
 } from './folder.dto';
+import { ParseFolderIdsPipe } from './folder.pipe';
 import { FolderService } from './folder.service';
 
 // 레거시 경로(/user/folder)를 유지한다
-// TODO: 폴더 삭제(DELETE /:folderId)·상세 조회(GET /:folderId)는 Member·Task 엔티티가 필요해 tasks 도메인 이관 후 연결한다.
 @ApiTags('Folder')
 @ApiBearerAuth()
 @Controller('user/folder')
@@ -59,5 +68,34 @@ export class FolderController {
   ) {
     const data = await this.folderService.updateFolder(user.id, folderId, dto);
     return { message: '폴더 수정 성공', data };
+  }
+
+  @Delete(':folderId')
+  @ApiOperation({ summary: '폴더 삭제' })
+  async deleteFolder(
+    @Param('folderId', ParseIntPipe) folderId: number,
+    @Query() query: DeleteFolderQueryDto,
+    @CurrentUser() user: UserPayload,
+  ) {
+    await this.folderService.deleteFolder(user.id, folderId, query.moveTasks);
+    const message = query.moveTasks
+      ? '과제 이동 및 폴더 삭제 성공'
+      : '폴더 삭제 성공';
+    return { message, data: null };
+  }
+
+  @Get(':folderId')
+  @ApiOperation({ summary: '폴더 상세 조회 (과제·세부 과제 포함)' })
+  @ApiParam({
+    name: 'folderId',
+    type: String,
+    description: '쉼표로 구분한 폴더 ID (예: 1,2,3)',
+  })
+  async getFolderDetail(
+    @Param('folderId', ParseFolderIdsPipe) folderIds: number[],
+    @CurrentUser() user: UserPayload,
+  ) {
+    const data = await this.folderService.getFolderDetail(user.id, folderIds);
+    return { message: '폴더 상세 정보 및 과제 목록 조회 성공', data };
   }
 }

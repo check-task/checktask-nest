@@ -1,30 +1,32 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, In, MoreThanOrEqual, Repository } from 'typeorm';
 import {
   BadRequestError,
   ForbiddenError,
   NotFoundError,
 } from '../common/response/error/custom.error';
+import { Member } from '../tasks/entities/member.entity';
 import {
   CreateFolderDto,
+  FolderDetailResponseDto,
   FolderResponseDto,
   UpdateFolderDto,
   UpdateFolderPriorityDto,
 } from './folder.dto';
-import { Folder } from './folder.entity';
+import { DEFAULT_FOLDER_TITLE, Folder } from './folder.entity';
 
 // 사용자당 최대 폴더 수 (기본 폴더 포함)
 const MAX_FOLDER_COUNT = 6;
-
-// 회원가입 시 만들어지는 기본 폴더. 수정·삭제·순서 변경할 수 없다.
-export const DEFAULT_FOLDER_TITLE = '지정안함';
 
 @Injectable()
 export class FolderService {
   constructor(
     @InjectRepository(Folder)
     private readonly folderRepository: Repository<Folder>,
+    @InjectRepository(Member)
+    private readonly memberRepository: Repository<Member>,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -92,22 +94,7 @@ export class FolderService {
     folderId: number,
     dto: UpdateFolderDto,
   ): Promise<FolderResponseDto> {
-    const folder = await this.folderRepository.findOneBy({ id: folderId });
-    if (!folder) {
-      throw new NotFoundError(
-        'FOLDER_NOT_FOUND',
-        '해당 폴더를 찾을 수 없습니다.',
-      );
-    }
-    if (folder.userId !== userId) {
-      throw new ForbiddenError('FORBIDDEN', '수정 권한이 없습니다.');
-    }
-    if (folder.folderTitle === DEFAULT_FOLDER_TITLE) {
-      throw new BadRequestError(
-        'PROTECTED_FOLDER',
-        `'${DEFAULT_FOLDER_TITLE}' 폴더는 수정할 수 없습니다.`,
-      );
-    }
+    const folder = await this.getOwnFolder(userId, folderId, '수정');
 
     // 실제로 바뀌는 값만 중복을 확인한다
     const isTitleChanged =
@@ -147,6 +134,57 @@ export class FolderService {
   }
 
   /**
+   * 폴더 삭제
+   * 과제가 남아 있으면 moveTasks가 true일 때만 기본 폴더로 옮긴 뒤 삭제한다.
+   * @throws NotFoundError(FOLDER_NOT_FOUND) - 폴더가 없을 때
+   * @throws ForbiddenError(FORBIDDEN) - 다른 사용자의 폴더일 때
+   * @throws BadRequestError(PROTECTED_FOLDER) - 기본 폴더일 때
+   * @throws BadRequestError(FOLDER_NOT_EMPTY) - 과제가 남아 있는데 moveTasks가 false일 때
+   * @throws NotFoundError(DEFAULT_FOLDER_NOT_FOUND) - 과제를 옮길 기본 폴더가 없을 때
+   */
+  async deleteFolder(
+    userId: number,
+    folderId: number,
+    moveTasks: boolean,
+  ): Promise<void> {
+    await this.getOwnFolder(userId, folderId, '삭제');
+
+    // 완료된 과제도 포함해서 확인한다
+    const hasTasks = await this.memberRepository.existsBy({ folderId });
+    if (hasTasks && !moveTasks) {
+      throw new BadRequestError(
+        'FOLDER_NOT_EMPTY',
+        '폴더 내부에 과제(완료된 과제 포함)가 존재하여 삭제할 수 없습니다.',
+      );
+    }
+
+    const defaultFolder = hasTasks
+      ? await this.folderRepository.findOneBy({
+          userId,
+          folderTitle: DEFAULT_FOLDER_TITLE,
+        })
+      : null;
+    if (hasTasks && !defaultFolder) {
+      throw new NotFoundError(
+        'DEFAULT_FOLDER_NOT_FOUND',
+        `'${DEFAULT_FOLDER_TITLE}' 기본 폴더를 찾을 수 없어 과제를 이동할 수 없습니다.`,
+      );
+    }
+
+    // 과제 이동과 폴더 삭제는 함께 성공해야 한다
+    await this.dataSource.transaction(async (manager) => {
+      if (defaultFolder) {
+        await manager.update(
+          Member,
+          { userId, folderId },
+          { folderId: defaultFolder.id },
+        );
+      }
+      await manager.delete(Folder, { id: folderId, userId });
+    });
+  }
+
+  /**
    * 폴더 순서 일괄 변경 (기본 폴더와 다른 사용자의 폴더는 무시한다)
    */
   async updateFolderPriority(
@@ -179,5 +217,77 @@ export class FolderService {
       })
       .setParameters(parameters)
       .execute();
+  }
+
+  /**
+   * 폴더 상세 조회 (여러 폴더 가능). 폴더별로 마감 전 과제와 세부 과제를 함께 반환한다.
+   * @throws NotFoundError(FOLDER_NOT_FOUND) - 내 폴더가 하나도 없을 때
+   */
+  async getFolderDetail(
+    userId: number,
+    folderIds: number[],
+  ): Promise<FolderDetailResponseDto[]> {
+    const now = new Date();
+    const [folders, members] = await Promise.all([
+      this.folderRepository.find({
+        where: { id: In(folderIds), userId },
+        order: { id: 'ASC' },
+      }),
+      // 과제·세부 과제를 한 번에 조회 (N+1 방지)
+      this.memberRepository.find({
+        where: {
+          userId,
+          folderId: In(folderIds),
+          task: { deadline: MoreThanOrEqual(now) },
+        },
+        relations: { task: { subTasks: true } },
+        order: { task: { deadline: 'ASC', subTasks: { id: 'ASC' } } },
+      }),
+    ]);
+
+    if (folders.length === 0) {
+      throw new NotFoundError(
+        'FOLDER_NOT_FOUND',
+        '해당 폴더를 찾을 수 없거나 접근 권한이 없습니다.',
+      );
+    }
+
+    return folders.map((folder) =>
+      FolderDetailResponseDto.from(
+        folder,
+        members
+          .filter((member) => member.folderId === folder.id)
+          .map((member) => member.task),
+        now,
+      ),
+    );
+  }
+
+  /**
+   * 내 폴더인지 확인하고 반환한다. 기본 폴더는 수정·삭제할 수 없다.
+   * @param action 에러 문구에 쓸 동작
+   */
+  private async getOwnFolder(
+    userId: number,
+    folderId: number,
+    action: '수정' | '삭제',
+  ): Promise<Folder> {
+    const folder = await this.folderRepository.findOneBy({ id: folderId });
+    if (!folder) {
+      throw new NotFoundError(
+        'FOLDER_NOT_FOUND',
+        '해당 폴더를 찾을 수 없습니다.',
+      );
+    }
+    if (folder.userId !== userId) {
+      throw new ForbiddenError('FORBIDDEN', `${action} 권한이 없습니다.`);
+    }
+    if (folder.folderTitle === DEFAULT_FOLDER_TITLE) {
+      throw new BadRequestError(
+        'PROTECTED_FOLDER',
+        `'${DEFAULT_FOLDER_TITLE}' 폴더는 ${action}할 수 없습니다.`,
+      );
+    }
+    return folder;
   }
 }
