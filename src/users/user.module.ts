@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AlarmModule } from '../alarms/alarm.module';
 import { Folder } from '../folders/folder.entity';
 import { UserAgreement } from './entities/user-agreement.entity';
 import { UserAlarmSetting } from './entities/user-alarm-setting.entity';
@@ -17,6 +18,7 @@ import { UserService } from './user.service';
       UserAgreement,
       Folder, // 내 정보 조회의 폴더 목록
     ]),
+    AlarmModule,
   ],
   controllers: [UserController],
   providers: [UserService],

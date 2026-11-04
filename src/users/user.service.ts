@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
+import { AlarmService } from '../alarms/alarm.service';
 import { NotFoundError } from '../common/response/error/custom.error';
 import { S3Service } from '../common/s3/s3.service';
 import { Folder } from '../folders/folder.entity';
@@ -30,7 +31,7 @@ export class UserService {
     private readonly userAlarmSettingRepository: Repository<UserAlarmSetting>,
     @InjectRepository(Folder)
     private readonly folderRepository: Repository<Folder>,
-    private readonly dataSource: DataSource,
+    private readonly alarmService: AlarmService,
     private readonly s3Service: S3Service,
   ) {}
 
@@ -110,12 +111,9 @@ export class UserService {
       email: dto.email,
       profileImage: dto.profileImageKey,
     });
-    const alarmFields = omitUndefined({
-      deadlineAlarm: dto.deadlineAlarm,
-      taskAlarm: dto.taskAlarm,
-    });
     const hasUserUpdate = Object.keys(userFields).length > 0;
-    const hasAlarmUpdate = Object.keys(alarmFields).length > 0;
+    const hasAlarmUpdate =
+      dto.deadlineAlarm !== undefined || dto.taskAlarm !== undefined;
 
     // 바꿀 값이 없으면 현재 정보를 그대로 반환한다
     if (!hasUserUpdate && !hasAlarmUpdate) {
@@ -123,17 +121,16 @@ export class UserService {
       return UserProfileResponseDto.from(user, profileImageUrl);
     }
 
-    await this.dataSource.transaction(async (manager) => {
-      if (hasUserUpdate) {
-        await manager.update(User, { id: userId }, userFields);
-      }
-      // 알림 설정이 없으면 생성 (보내지 않은 값은 DB 기본값 24)
-      if (hasAlarmUpdate) {
-        await manager.upsert(UserAlarmSetting, { userId, ...alarmFields }, [
-          'userId',
-        ]);
-      }
-    });
+    if (hasUserUpdate) {
+      await this.userRepository.update({ id: userId }, userFields);
+    }
+    // 알림 시간 저장과 함께 대기 중인 알림의 발송 시각 및 제목을 다시 계산한다
+    if (dto.deadlineAlarm !== undefined) {
+      await this.alarmService.updateDeadlineAlarm(userId, dto.deadlineAlarm);
+    }
+    if (dto.taskAlarm !== undefined) {
+      await this.alarmService.updateTaskAlarm(userId, dto.taskAlarm);
+    }
 
     const updatedUser = await this.userRepository.findOneByOrFail({
       id: userId,
