@@ -10,7 +10,8 @@ import {
   Not,
   Repository,
 } from 'typeorm';
-import { SubTaskStatus, TaskType } from '../common/enums';
+import { AlarmService } from '../alarms/alarm.service';
+import { SubTaskStatus, TaskStatus, TaskType } from '../common/enums';
 import { OffsetPage, toOffsetPage } from '../common/pagination/pagination.dto';
 import {
   BadRequestError,
@@ -23,11 +24,9 @@ import { ReferenceService } from '../references/reference.service';
 import { User } from '../users/entities/user.entity';
 import { MEMBER_ROLE, Member } from './entities/member.entity';
 import { SubTaskAssignee } from './entities/sub-task-assignee.entity';
-import { AssignedSubTask, TaskAlarmService } from './task-alarm.service';
 import { SubTask } from './entities/sub-task.entity';
 import { TaskPriority } from './entities/task-priority.entity';
 import { Task } from './entities/task.entity';
-import { TaskStatus } from './task-status.enum';
 import {
   CompletedTaskResponseDto,
   ConvertTaskResponseDto,
@@ -143,7 +142,7 @@ export class TaskService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Folder)
     private readonly folderRepository: Repository<Folder>,
-    private readonly taskAlarmService: TaskAlarmService,
+    private readonly alarmService: AlarmService,
     private readonly referenceService: ReferenceService,
   ) {}
 
@@ -263,16 +262,10 @@ export class TaskService {
         })),
       );
 
-      await this.taskAlarmService.createTaskAlarms(manager, task, [userId], 0);
-      await this.taskAlarmService.createSubTaskAlarms(
-        manager,
-        subTasks.map((subTask, index) => ({
-          subTask,
-          assigneeUserIds: assigneesBySubTask[index].map(
-            (member) => member.userId,
-          ),
-        })),
-      );
+      await this.alarmService.createTaskAlarms(task.id, manager, [userId]);
+      for (const subTask of subTasks) {
+        await this.alarmService.createSubTaskAlarms(subTask.id, manager);
+      }
       await this.referenceService.createForTask(
         manager,
         task.id,
@@ -365,31 +358,9 @@ export class TaskService {
         }),
       );
 
-      const others = await manager.find(Member, {
-        where: { taskId: task.id, userId: Not(userId) },
-        select: { id: true, userId: true },
-      });
-      const nickname =
-        (await this.getNickname(manager, userId)) ?? '새로운 팀원';
-      await this.taskAlarmService.createMemberJoinAlarms(
-        manager,
-        task,
-        others.map((other) => other.userId),
-        nickname,
-      );
-
-      if (task.isAlarm) {
-        const subTasks = await manager.find(SubTask, {
-          where: { taskId: task.id },
-          select: { id: true, status: true },
-        });
-        await this.taskAlarmService.createTaskAlarms(
-          manager,
-          task,
-          [userId],
-          calculateProgressRate(subTasks),
-        );
-      }
+      // 기존 팀원에게 참여 알림, 새 팀원에게 과제 마감 알림 (과제 알림이 꺼져 있으면 AlarmService가 건너뜀)
+      await this.alarmService.createMemberJoinAlarms(task.id, userId, manager);
+      await this.alarmService.createTaskAlarms(task.id, manager, [userId]);
 
       return {
         task_id: task.id,
@@ -432,7 +403,6 @@ export class TaskService {
   ): Promise<SubTaskDeadlineResponseDto> {
     const subTask = await this.getAccessibleSubTask(subTaskId, userId, {
       task: true,
-      assignees: { member: true },
     });
     const endDate = dto.endDate;
     this.assertSubTaskDeadline(
@@ -444,14 +414,10 @@ export class TaskService {
     await this.dataSource.transaction(async (manager) => {
       await manager.update(SubTask, subTask.id, { endDate });
       // 마감일이 없어지면 알림을 지우고, 생기거나 바뀌면 알림을 만들거나 시각을 고친다
-      await this.taskAlarmService.syncSubTaskAlarms(manager, [
-        {
-          subTask: { ...this.toAlarmSubTask(subTask), endDate },
-          assigneeUserIds: subTask.assignees.map(
-            (assignee) => assignee.member.userId,
-          ),
-        },
-      ]);
+      await this.syncSubTaskAlarms(manager, {
+        subTask: { ...subTask, endDate },
+        endDateChanged: true,
+      });
     });
     return { sub_task_id: subTask.id, end_date: endDate };
   }
@@ -496,12 +462,16 @@ export class TaskService {
       await this.replaceAssignees(manager, subTask.id, nextAssignees);
       await manager.update(SubTask, subTask.id, { updatedAt: new Date() });
       // 빠진 담당자의 알림은 지우고, 새 담당자에게 알림을 만든다
-      await this.taskAlarmService.syncSubTaskAlarms(manager, [
-        {
-          subTask: this.toAlarmSubTask(subTask),
-          assigneeUserIds: nextAssignees.map((member) => member.userId),
-        },
-      ]);
+      const nextMemberIds = new Set(nextAssignees.map((member) => member.id));
+      await this.syncSubTaskAlarms(manager, {
+        subTask,
+        removedUserIds: subTask.task.members
+          .filter(
+            (member) =>
+              prevMemberIds.has(member.id) && !nextMemberIds.has(member.id),
+          )
+          .map((member) => member.userId),
+      });
     });
     return response;
   }
@@ -550,12 +520,9 @@ export class TaskService {
           ...(deadline && { deadline }),
         });
       }
-      if (deadline)
-        await this.taskAlarmService.rescheduleTaskAlarms(
-          manager,
-          taskId,
-          deadline,
-        );
+      if (deadline) {
+        await this.alarmService.updateTaskAlarmDates(taskId, deadline, manager);
+      }
     });
     return { taskId };
   }
@@ -860,12 +827,7 @@ export class TaskService {
       await this.insertAssignees(manager, [
         { subTaskId: subTask.id, members: assignees },
       ]);
-      await this.taskAlarmService.createSubTaskAlarms(manager, [
-        {
-          subTask,
-          assigneeUserIds: assignees.map((member) => member.userId),
-        },
-      ]);
+      await this.alarmService.createSubTaskAlarms(subTask.id, manager);
       return {
         subTaskId: subTask.id,
         title: subTask.title,
@@ -911,6 +873,11 @@ export class TaskService {
       );
     }
 
+    // 알림 조정용: 수정 전 마감일
+    const prevEndDateById = new Map(
+      subTasks.map((subTask) => [subTask.id, subTask.endDate?.getTime()]),
+    );
+
     // 규칙 확인 후 변경 내용을 반영한다
     const subTaskById = new Map(
       subTasks.map((subTask) => [subTask.id, subTask]),
@@ -951,14 +918,16 @@ export class TaskService {
     const userIdByMemberId = new Map(
       members.map((member) => [member.id, member.userId]),
     );
-    // 담당자 변경이 없는 세부 과제는 기존 담당자 기준으로 알림을 맞춘다
-    const assigneeUserIdsOf = (subTask: SubTask): number[] =>
-      nextAssigneesBySubTaskId
-        .get(subTask.id)
-        ?.map((member) => member.userId) ??
-      subTask.assignees
+    // 담당에서 빠지는 사람 (담당자 변경이 없는 세부 과제는 빈 배열)
+    const removedUserIdsOf = (subTask: SubTask): number[] => {
+      const next = nextAssigneesBySubTaskId.get(subTask.id);
+      if (!next) return [];
+      const nextMemberIds = new Set(next.map((member) => member.id));
+      return subTask.assignees
+        .filter((assignee) => !nextMemberIds.has(assignee.memberId))
         .map((assignee) => userIdByMemberId.get(assignee.memberId))
         .filter((id): id is number => id !== undefined);
+    };
 
     await this.dataSource.transaction(async (manager) => {
       // assignees 관계는 저장 대상에서 빼고 컬럼만 저장한다 (담당자는 아래에서 따로 바꿈)
@@ -976,13 +945,14 @@ export class TaskService {
       for (const [subTaskId, nextMembers] of nextAssigneesBySubTaskId) {
         await this.replaceAssignees(manager, subTaskId, nextMembers);
       }
-      await this.taskAlarmService.syncSubTaskAlarms(
-        manager,
-        subTasks.map((subTask) => ({
-          subTask: this.toAlarmSubTask(subTask),
-          assigneeUserIds: assigneeUserIdsOf(subTask),
-        })),
-      );
+      for (const subTask of subTasks) {
+        await this.syncSubTaskAlarms(manager, {
+          subTask,
+          endDateChanged:
+            prevEndDateById.get(subTask.id) !== subTask.endDate?.getTime(),
+          removedUserIds: removedUserIdsOf(subTask),
+        });
+      }
     });
     return subTasks.map((subTask) => UpdatedSubTaskResponseDto.from(subTask));
   }
@@ -1042,10 +1012,10 @@ export class TaskService {
 
     await this.dataSource.transaction(async (manager) => {
       await manager.update(Task, taskId, { deadline: dto.deadline });
-      await this.taskAlarmService.rescheduleTaskAlarms(
-        manager,
+      await this.alarmService.updateTaskAlarmDates(
         taskId,
         dto.deadline,
+        manager,
       );
     });
     return { taskId, deadline: dto.deadline };
@@ -1389,16 +1359,41 @@ export class TaskService {
     }
   }
 
-  /** 알림 계산에 필요한 세부 과제 필드 */
-  private toAlarmSubTask(subTask: SubTask): AssignedSubTask['subTask'] {
-    return {
-      id: subTask.id,
-      taskId: subTask.taskId,
-      title: subTask.title,
-      status: subTask.status,
-      endDate: subTask.endDate,
-      isAlarm: subTask.isAlarm,
-    };
+  /**
+   * 세부 과제가 바뀐 뒤(같은 트랜잭션에서 DB 반영 후) 알림을 맞춘다.
+   * - 알림이 꺼졌거나 마감일이 없으면 이 세부 과제 알림을 모두 지운다.
+   * - 담당에서 빠진 사람의 알림을 지우고, 마감일이 바뀌었으면 알림 시각을 다시 계산한다.
+   * - 알림이 없는 담당자에게는 새로 만든다. (AlarmService가 이미 있는 담당자는 건너뜀)
+   */
+  private async syncSubTaskAlarms(
+    manager: EntityManager,
+    {
+      subTask,
+      endDateChanged = false,
+      removedUserIds = [],
+    }: {
+      subTask: Pick<SubTask, 'id' | 'endDate' | 'isAlarm'>;
+      endDateChanged?: boolean;
+      removedUserIds?: number[];
+    },
+  ): Promise<void> {
+    if (!subTask.isAlarm || !subTask.endDate) {
+      await this.alarmService.deleteSubTaskAlarms([subTask.id], manager);
+      return;
+    }
+    await this.alarmService.deleteSubTaskAlarms(
+      [subTask.id],
+      manager,
+      removedUserIds,
+    );
+    if (endDateChanged) {
+      await this.alarmService.updateSubTaskAlarmDates(
+        subTask.id,
+        subTask.endDate,
+        manager,
+      );
+    }
+    await this.alarmService.createSubTaskAlarms(subTask.id, manager);
   }
 
   /** 참여자를 과제에서 뺀다 (담당 해제 → 알림 삭제 → Member 삭제) */
@@ -1407,10 +1402,10 @@ export class TaskService {
     member: Member,
   ): Promise<void> {
     await manager.delete(SubTaskAssignee, { memberId: member.id });
-    await this.taskAlarmService.deleteUserTaskAlarms(
-      manager,
+    await this.alarmService.deleteAlarmsByUserAndTask(
       member.userId,
       member.taskId,
+      manager,
     );
     await manager.delete(Member, member.id);
   }
@@ -1426,18 +1421,6 @@ export class TaskService {
         '해당 사용자를 찾을 수 없습니다.',
       );
     }
-  }
-
-  /** 닉네임 조회 (없으면 null). 트랜잭션 안에서 부른다 */
-  private async getNickname(
-    manager: EntityManager,
-    userId: number,
-  ): Promise<string | null> {
-    const user = await manager.findOne(User, {
-      where: { id: userId },
-      select: { id: true, nickname: true },
-    });
-    return user?.nickname ?? null;
   }
 
   /**

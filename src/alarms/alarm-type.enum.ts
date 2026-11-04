@@ -1,4 +1,4 @@
-// 알림 종류 (DB AlarmType enum과 동일)
+// 알림 유형 (DB AlarmType enum과 동일)
 export enum AlarmType {
   TASK = 'TASK',
   SUBTASK = 'SUBTASK',

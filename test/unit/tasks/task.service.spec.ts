@@ -1,11 +1,11 @@
 import { DataSource, Repository } from 'typeorm';
-import { SubTaskStatus, TaskType } from '../../../src/common/enums';
+import { SubTaskStatus, TaskStatus, TaskType } from '../../../src/common/enums';
 import { CustomError } from '../../../src/common/response/error/custom.error';
 import { Folder } from '../../../src/folders/folder.entity';
 import { ReferenceService } from '../../../src/references/reference.service';
 import { Member } from '../../../src/tasks/entities/member.entity';
 import { SubTaskAssignee } from '../../../src/tasks/entities/sub-task-assignee.entity';
-import { TaskAlarmService } from '../../../src/tasks/task-alarm.service';
+import { AlarmService } from '../../../src/alarms/alarm.service';
 import { SubTask } from '../../../src/tasks/entities/sub-task.entity';
 import { TaskPriority } from '../../../src/tasks/entities/task-priority.entity';
 import { Task } from '../../../src/tasks/entities/task.entity';
@@ -14,7 +14,6 @@ import {
   TaskService,
   calculateProgressRate,
 } from '../../../src/tasks/task.service';
-import { TaskStatus } from '../../../src/tasks/task-status.enum';
 import { User } from '../../../src/users/entities/user.entity';
 
 const createRepository = () => ({
@@ -99,9 +98,10 @@ describe('TaskService', () => {
       createTaskAlarms: vi.fn(),
       createSubTaskAlarms: vi.fn(),
       createMemberJoinAlarms: vi.fn(),
-      rescheduleTaskAlarms: vi.fn(),
-      syncSubTaskAlarms: vi.fn(),
-      deleteUserTaskAlarms: vi.fn(),
+      updateTaskAlarmDates: vi.fn(),
+      updateSubTaskAlarmDates: vi.fn(),
+      deleteSubTaskAlarms: vi.fn(),
+      deleteAlarmsByUserAndTask: vi.fn(),
     };
     referenceService = {
       createForTask: vi.fn(),
@@ -121,7 +121,7 @@ describe('TaskService', () => {
       asRepository<TaskPriority>('taskPriority'),
       asRepository<User>('user'),
       asRepository<Folder>('folder'),
-      alarmService as unknown as TaskAlarmService,
+      alarmService as unknown as AlarmService,
       referenceService as unknown as ReferenceService,
     );
   });
@@ -279,12 +279,10 @@ describe('TaskService', () => {
         SubTaskAssignee,
         expect.anything(),
       );
-      expect(alarmService.createSubTaskAlarms).toHaveBeenCalledWith(manager, [
-        {
-          subTask: expect.objectContaining({ title: '조사' }),
-          assigneeUserIds: [],
-        },
-      ]);
+      expect(alarmService.createSubTaskAlarms).toHaveBeenCalledWith(
+        1002,
+        manager,
+      );
     });
 
     it('우선순위를 맨 뒤로 두고, 개인 과제는 소유자 담당 세부 과제·알림·자료를 만든다', async () => {
@@ -304,21 +302,18 @@ describe('TaskService', () => {
         expect.objectContaining({ userId: USER_ID, rank: 4 }),
       );
       expect(alarmService.createTaskAlarms).toHaveBeenCalledWith(
+        1000,
         manager,
-        expect.objectContaining({ title: '중간 발표' }),
         [USER_ID],
-        0,
       );
       // 소유자(Member 1001)가 세부 과제(1002)를 담당한다
       expect(manager.insert).toHaveBeenCalledWith(SubTaskAssignee, [
         { subTaskId: 1002, memberId: 1001 },
       ]);
-      expect(alarmService.createSubTaskAlarms).toHaveBeenCalledWith(manager, [
-        {
-          subTask: expect.objectContaining({ title: '조사' }),
-          assigneeUserIds: [USER_ID],
-        },
-      ]);
+      expect(alarmService.createSubTaskAlarms).toHaveBeenCalledWith(
+        1002,
+        manager,
+      );
       expect(referenceService.createForTask).toHaveBeenCalledWith(
         manager,
         1000,
@@ -401,7 +396,7 @@ describe('TaskService', () => {
       ).toBe('DUPLICATE_MEMBER');
     });
 
-    it('기존 팀원에게 참여 알림, 참여자에게 진행률을 담은 마감 알림을 만든다', async () => {
+    it('기존 팀원에게 참여 알림, 새 팀원에게 과제 마감 알림을 만든다', async () => {
       repositories.task.findOne.mockResolvedValue(
         task({ type: TaskType.TEAM }),
       );
@@ -432,17 +427,13 @@ describe('TaskService', () => {
 
       expect(result).toMatchObject({ task_id: 10, folderId: 7 });
       expect(alarmService.createMemberJoinAlarms).toHaveBeenCalledWith(
+        10,
+        USER_ID,
         manager,
-        expect.objectContaining({ id: 10 }),
-        [2, 3],
-        '소윤',
       );
-      expect(alarmService.createTaskAlarms).toHaveBeenCalledWith(
-        manager,
-        expect.objectContaining({ id: 10 }),
-        [USER_ID],
-        50,
-      );
+      expect(alarmService.createTaskAlarms).toHaveBeenCalledWith(10, manager, [
+        USER_ID,
+      ]);
     });
   });
 
@@ -499,12 +490,16 @@ describe('TaskService', () => {
         { subTaskId: 50, memberId: 102 },
         { subTaskId: 50, memberId: 101 },
       ]);
-      expect(alarmService.syncSubTaskAlarms).toHaveBeenCalledWith(manager, [
-        {
-          subTask: expect.objectContaining({ id: 50 }),
-          assigneeUserIds: [3, 2],
-        },
-      ]);
+      // 빠진 담당자(User 1)의 알림은 지우고, 새 담당자에게 알림을 만든다
+      expect(alarmService.deleteSubTaskAlarms).toHaveBeenCalledWith(
+        [50],
+        manager,
+        [USER_ID],
+      );
+      expect(alarmService.createSubTaskAlarms).toHaveBeenCalledWith(
+        50,
+        manager,
+      );
       expect(result.assignees.map((a) => a.userId)).toEqual([3, 2]);
     });
 
@@ -573,12 +568,25 @@ describe('TaskService', () => {
       expect(manager.update).toHaveBeenCalledWith(SubTask, 50, {
         endDate: null,
       });
-      expect(alarmService.syncSubTaskAlarms).toHaveBeenCalledWith(manager, [
-        {
-          subTask: expect.objectContaining({ id: 50, endDate: null }),
-          assigneeUserIds: [USER_ID, 2],
-        },
-      ]);
+      expect(alarmService.deleteSubTaskAlarms).toHaveBeenCalledWith(
+        [50],
+        manager,
+      );
+      expect(alarmService.createSubTaskAlarms).not.toHaveBeenCalled();
+    });
+
+    it('마감일을 바꾸면 알림 시각을 다시 계산하고, 알림이 없는 담당자에게 만든다', async () => {
+      const endDate = new Date(DEADLINE.getTime() - 3600_000);
+      await service.updateSubTaskDeadline(50, { endDate }, USER_ID);
+      expect(alarmService.updateSubTaskAlarmDates).toHaveBeenCalledWith(
+        50,
+        endDate,
+        manager,
+      );
+      expect(alarmService.createSubTaskAlarms).toHaveBeenCalledWith(
+        50,
+        manager,
+      );
     });
   });
 
@@ -607,7 +615,7 @@ describe('TaskService', () => {
       ).toBe('DATA_NOT_PROVIDED');
     });
 
-    it('deadline만 보내도 endDate로 반영하고 기존 담당자 기준으로 알림을 맞춘다', async () => {
+    it('deadline만 보내도 endDate로 반영하고 알림 시각을 다시 계산한다', async () => {
       const endDate = new Date(DEADLINE.getTime() - 24 * 3600_000);
       repositories.subTask.find.mockResolvedValue([
         {
@@ -633,12 +641,17 @@ describe('TaskService', () => {
         SubTaskAssignee,
         expect.anything(),
       );
-      expect(alarmService.syncSubTaskAlarms).toHaveBeenCalledWith(manager, [
-        {
-          subTask: expect.objectContaining({ id: 1, endDate }),
-          assigneeUserIds: [USER_ID],
-        },
-      ]);
+      expect(alarmService.deleteSubTaskAlarms).toHaveBeenCalledWith(
+        [1],
+        manager,
+        [],
+      );
+      expect(alarmService.updateSubTaskAlarmDates).toHaveBeenCalledWith(
+        1,
+        endDate,
+        manager,
+      );
+      expect(alarmService.createSubTaskAlarms).toHaveBeenCalledWith(1, manager);
     });
 
     it('assigneeIds만 보내도 수정 요청으로 보고 담당자를 바꾼다', async () => {
@@ -656,12 +669,12 @@ describe('TaskService', () => {
       expect(manager.insert).toHaveBeenCalledWith(SubTaskAssignee, [
         { subTaskId: 1, memberId: 100 },
       ]);
-      expect(alarmService.syncSubTaskAlarms).toHaveBeenCalledWith(manager, [
-        {
-          subTask: expect.objectContaining({ id: 1 }),
-          assigneeUserIds: [USER_ID],
-        },
-      ]);
+      // 마감일이 없는 세부 과제라 알림은 만들지 않고 지운다
+      expect(alarmService.deleteSubTaskAlarms).toHaveBeenCalledWith(
+        [1],
+        manager,
+      );
+      expect(alarmService.createSubTaskAlarms).not.toHaveBeenCalled();
     });
   });
 
@@ -681,10 +694,10 @@ describe('TaskService', () => {
       await service.updateTask(10, { deadline }, USER_ID);
 
       expect(manager.update).toHaveBeenCalledWith(Task, 10, { deadline });
-      expect(alarmService.rescheduleTaskAlarms).toHaveBeenCalledWith(
-        manager,
+      expect(alarmService.updateTaskAlarmDates).toHaveBeenCalledWith(
         10,
         deadline,
+        manager,
       );
     });
   });
@@ -754,10 +767,10 @@ describe('TaskService', () => {
       expect(manager.delete).toHaveBeenCalledWith(SubTaskAssignee, {
         memberId: 101,
       });
-      expect(alarmService.deleteUserTaskAlarms).toHaveBeenCalledWith(
-        manager,
+      expect(alarmService.deleteAlarmsByUserAndTask).toHaveBeenCalledWith(
         USER_ID,
         10,
+        manager,
       );
       expect(manager.delete).toHaveBeenCalledWith(Member, 101);
       expect(result).toMatchObject({ deleted: 'member', memberId: 101 });

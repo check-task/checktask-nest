@@ -247,16 +247,22 @@ throw new ForbiddenError(); // 인자를 생략하면 기본 errorCode·reason
 | 400 | `MAX_FOLDER_LIMIT` | 생성 가능한 폴더의 최대 제한 개수를 초과함 |
 | 400 | `INVALID_DATE` | 요청한 날짜 데이터가 유효한 날짜 형식이 아님 |
 | 400 | `INVALID_DEADLINE` | 세부 과제의 마감일이 부모 과제의 마감일을 초과하여 설정됨 |
+| 400 | `SUBTASK_NO_ASSIGNEE` | 담당자가 없는 세부 과제의 알림을 켜려고 시도함 |
 | 401 | `TOKEN_NOT_FOUND` | 요청 헤더(Header)에 인증 토큰이 존재하지 않음 |
 | 401 | `TOKEN_EXPIRED` | 제공된 인증 토큰의 유효 기간이 만료됨 |
 | 401 | `INVALID_CREDENTIALS` | 로그인 시 입력한 이메일 또는 비밀번호가 일치하지 않음 |
 | 403 | `FORBIDDEN_TASK` | 해당 과제가 속한 팀의 팀원이 아니거나, 접근/수정 권한이 없음 |
 | 403 | `FORBIDDEN_PERSONAL_TASK` | 다른 사용자의 개인 과제에 접근하거나 수정하려고 시도함 |
+| 403 | `TASK_ACCESS_DENIED` | 과제 참여자가 아닌 사용자가 과제 알림 여부를 수정하려고 시도함 |
+| 403 | `SUBTASK_ACCESS_DENIED` | 과제 참여자가 아닌 사용자가 세부 과제 알림 여부를 수정하려고 시도함 |
+| 403 | `ALARM_ACCESS_DENIED` | 다른 사용자의 알림에 접근하거나 수정하려고 시도함 |
 | 403 | `USER_DELETED` | 이미 탈퇴 처리된 사용자가 서비스 리소스에 접근하려고 시도함 |
 | 404 | `USER_NOT_FOUND` | 요청한 정보를 기반으로 DB에서 해당 사용자를 찾을 수 없음 |
 | 404 | `TASK_NOT_FOUND` | 요청한 과제(Task)가 존재하지 않거나 이미 삭제됨 |
 | 404 | `SUBTASK_NOT_FOUND` | 요청한 세부 과제(Subtask)가 존재하지 않거나 이미 삭제됨 |
 | 404 | `ALARM_NOT_FOUND` | 삭제하거나 읽음 처리하려는 대상 알림(Alarm)이 존재하지 않음 |
+| 404 | `FCM_TOKEN_NOT_FOUND` | 푸시를 보낼 사용자의 디바이스(FCM) 토큰이 Redis에 존재하지 않음 |
+| 500 | `PUSH_SEND_FAILED` | 외부 API(FCM) 연동 문제로 푸시 알림 발송에 실패함 |
 | 500 | `EMAIL_SEND_FAILED` | 외부 API 연동 문제로 이메일 인증 코드 및 임시 비밀번호 발송에 실패함 |
 | 500 | `SIGNUP_FAILED` | DB 트랜잭션 오류 등의 서버 문제로 회원가입 처리에 실패함 |
 | 500 | `USER_WITHDRAW_FAILED` | DB 트랜잭션 오류 등의 서버 문제로 회원 탈퇴 처리에 실패함 |

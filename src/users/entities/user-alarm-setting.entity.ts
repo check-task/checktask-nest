@@ -8,6 +8,9 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 
+// 알림 설정이 없는 유저의 기본값 (마감 N시간 전)
+export const DEFAULT_ALARM_HOURS = 24;
+
 // 유저별 알림 설정 (1:1). 값은 마감 몇 시간 전에 알릴지(시간 단위)
 @Entity('UserAlarmSetting')
 @Index('UserAlarmSetting_user_id_key', ['userId'], { unique: true })
@@ -22,11 +25,11 @@ export class UserAlarmSetting {
   userId: number;
 
   // 과제 마감 알림
-  @Column({ name: 'deadline_alarm', type: 'int', default: 24 })
+  @Column({ name: 'deadline_alarm', type: 'int', default: DEFAULT_ALARM_HOURS })
   deadlineAlarm: number;
 
   // 세부 과제 마감 알림
-  @Column({ name: 'task_alarm', type: 'int', default: 24 })
+  @Column({ name: 'task_alarm', type: 'int', default: DEFAULT_ALARM_HOURS })
   taskAlarm: number;
 
   // OneToOne은 TypeORM이 별도 unique 제약(REL_)을 만들어 기존 스키마와 달라지므로 ManyToOne + unique 인덱스로 매핑한다

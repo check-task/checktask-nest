@@ -10,8 +10,7 @@ import {
 import { Communication } from '../../references/entities/communication.entity';
 import { Log } from '../../references/entities/log.entity';
 import { Reference } from '../../references/entities/reference.entity';
-import { TaskStatus } from '../task-status.enum';
-import { TaskType } from '../../common/enums';
+import { TaskStatus, TaskType } from '../../common/enums';
 import { Member } from './member.entity';
 import { SubTask } from './sub-task.entity';
 import { TaskPriority } from './task-priority.entity';

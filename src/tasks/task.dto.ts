@@ -18,7 +18,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { IsOffsetDateTime } from '../common/decorators/is-offset-date-time.decorator';
-import { SubTaskStatus, TaskType } from '../common/enums';
+import { SubTaskStatus, TaskStatus, TaskType } from '../common/enums';
 import {
   OffsetMeta,
   OffsetPaginationQueryDto,
@@ -34,7 +34,6 @@ import { User } from '../users/entities/user.entity';
 import { MEMBER_ROLE, Member } from './entities/member.entity';
 import { SUB_TASK_TITLE_MAX_LENGTH, SubTask } from './entities/sub-task.entity';
 import { TASK_TITLE_MAX_LENGTH, Task } from './entities/task.entity';
-import { TaskStatus } from './task-status.enum';
 
 // 폴더가 없을 때 응답 기본값 (레거시와 동일)
 const DEFAULT_FOLDER_COLOR = '#818892';

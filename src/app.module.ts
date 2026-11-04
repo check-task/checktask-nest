@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AlarmModule } from './alarms/alarm.module';
 // import { AuthModule } from './auth/auth.module';
 import { JwtAuthModule } from './common/auth/jwt-auth.module';
 import { validateEnv } from './common/config/env.validation';
@@ -26,7 +28,9 @@ import { TaskModule } from './tasks/task.module';
     S3Module,
     FcmModule,
     MailModule,
+    ScheduleModule.forRoot(), // cron (alarms/alarm.scheduler.ts)
     HealthModule,
+    AlarmModule,
     ReferenceModule,
     TaskModule,
   ],
