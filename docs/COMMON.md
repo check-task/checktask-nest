@@ -118,8 +118,6 @@ Error: 환경 변수가 없거나 올바르지 않습니다. .env를 확인하�
 - 스키마 변경은 `src/common/migrations/`의 TypeORM 마이그레이션 파일로만 합니다.
 - 마이그레이션은 생성 후 **SQL을 직접 읽고 검토**합니다. 기존 테이블의 DROP·컬럼 타입 변경이 들어 있으면 의도한 것인지 확인합니다.
 - 첫 마이그레이션은 기존 DB를 기준선(baseline)으로 삼습니다. 엔티티가 기존 스키마와 정확히 맞으면 generate 결과가 비어 있어야 정상입니다.
-  - 기준 스키마는 레거시 저장소(`check-task/backend`) **`develop` 브랜치**의 Prisma 마이그레이션 전체입니다. (현재 9개, 마지막 `20260809040000_add_sub_task_assignee`) 이관 전에 레거시 로컬 복사본이 `develop` 최신인지 확인합니다.
-  - `@CreateDateColumn`·`@UpdateDateColumn`은 기본값 `now()`를 항상 붙여서 레거시(Prisma) 스키마(`CURRENT_TIMESTAMP` / 기본값 없음)와 달라집니다. 그래서 첫 마이그레이션 `AlignTimestampDefaults`가 이 기본값만 맞춥니다. (적용 후 generate 결과는 비어 있음)
 - 배포 시 `npm run build` → `npm run migration:run` → 서버 재시작 순서로 실행합니다.
 
 | 명령 | 동작 |
@@ -143,9 +141,6 @@ Error: 환경 변수가 없거나 올바르지 않습니다. .env를 확인하�
 | enum | 값 | 용도 |
 |---|---|---|
 | `Provider` | `KAKAO`, `APPLE` | 소셜 로그인 제공자 (DB `Provider` enum과 동일) |
-| `AlarmType` | `TASK`, `SUBTASK`, `MEMBER`, `NOTIFICATION`, `OTHER` | 알림 종류 (DB `AlarmType` enum과 동일). `tasks`가 알림을 만들고 `alarms`가 조회·발송 |
-| `SubTaskStatus` | `PENDING`, `PROGRESS`, `COMPLETED` | 세부 과제 상태 (DB `SubTaskStatus` enum과 동일). `tasks`·`alarms`(알림 문구)에서 사용 |
-| `TaskType` | `PERSONAL`, `TEAM` | 과제 종류 (DB `TaskType` enum과 동일). `tasks`·`alarms` 응답에서 사용 |
 
 ---
 
@@ -234,7 +229,6 @@ return toOffsetPage(items.map(TaskResponseDto.from), totalCount, query, 'taskLis
 | `endOfKstDay(date)` | KST 기준 그날 23:59:59.999 | |
 | `addDays(date, n)` | n일 뒤 (음수면 전) | |
 | `addHours(date, n)` | n시간 뒤 (음수면 전) | 마감 N시간 전 알림 시각 = `addHours(deadline, -N)` |
-| `diffKstDays(from, to)` | KST 날짜 기준 from → to 일수 차이 (시각 무시) | KST 20일 23:00 → KST 21일 00:30 = `1` (D-Day 계산) |
 
 `utils/`에는 의존성 없는 순수 함수만 둡니다.
 

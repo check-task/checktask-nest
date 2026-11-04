@@ -78,14 +78,10 @@ cron·소켓이 필요한 도메인은 `<도메인 단수>.scheduler.ts`, `<도�
 | `auth` | auth / login / token | 회원가입·로그인·카카오·토큰 발급/재발급 |
 | `users` | user | 유저, 약관 동의, 디바이스, 알림 설정 |
 | `folders` | user/folder | |
-| `tasks` | task / member | 과제, 세부 과제, 세부 과제 담당자(`SubTaskAssignee`, N:M), 우선순위, 과제 참여자 |
+| `tasks` | task / member | 과제, 세부 과제, 우선순위, 과제 참여자 |
 | `comments` | comment | |
 | `references` | modal (`/reference`) | 레거시 이름 `modal` → 실제 의미인 `references`로 변경 |
 | `alarms` | alarm + cron | `alarm.scheduler.ts`에서 마감 알림 발송 |
-
-- `tasks`가 함께 쓰는 도메인(`users`, `folders`, `alarms`, `references`)은 **Module·Service만 먼저** 만들었습니다. (Controller 없음) `TaskModule`은 이 모듈들을 `imports`하고, 다른 도메인의 엔티티를 직접 조회하지 않고 각 Service를 호출합니다. 해당 도메인을 이관할 때 Controller와 나머지 기능을 추가합니다.
-  - 트랜잭션 안에서 함께 실행돼야 하는 메서드(`AlarmService`, `ReferenceService.createForTask` 등)는 호출한 쪽의 `EntityManager`를 첫 인자로 받습니다.
-  - `comments`는 엔티티만 있고, 과제 상세에서 `SubTask.comments` 관계로 함께 조회합니다.
 
 도메인 이름·경계는 실제 이관할 때 조정할 수 있습니다. 조정하면 위 폴더 구조와 이 표를 함께 고칩니다.
 

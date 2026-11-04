@@ -244,32 +244,18 @@ throw new ForbiddenError(); // 인자를 생략하면 기본 errorCode·reason
 | 400 | `INVALID_INPUT` | 요청 데이터 형식이 서버가 요구하는 형식과 일치하지 않음 |
 | 400 | `DUPLICATE_NAME` | 이미 존재하는 중복된 폴더 이름을 사용하려고 시도함 |
 | 400 | `DUPLICATE_COLOR` | 이미 존재하는 중복된 폴더 색상을 사용하려고 시도함 |
-| 400 | `DUPLICATE_MEMBER` | 이미 참여 중인 과제에 다시 참여하려고 시도함 |
 | 400 | `MAX_FOLDER_LIMIT` | 생성 가능한 폴더의 최대 제한 개수를 초과함 |
 | 400 | `INVALID_DATE` | 요청한 날짜 데이터가 유효한 날짜 형식이 아님 |
 | 400 | `INVALID_DEADLINE` | 세부 과제의 마감일이 부모 과제의 마감일을 초과하여 설정됨 |
-| 400 | `TASK_DEADLINE_EXPIRED` | 마감일이 이미 지난 과제에 세부 과제를 추가하거나 세부 과제 마감일을 변경하려고 시도함 |
-| 400 | `DATA_NOT_PROVIDED` | 수정할 데이터가 요청 본문에 없음 |
-| 400 | `INVALID_TASK_TYPE` | 이미 팀 과제인 과제를 팀 과제로 변경하려고 시도함 |
-| 400 | `ASSIGNEE_NOT_IN_TASK` | 과제 참여자가 아닌 사용자를 세부 과제 담당자로 지정하려고 시도함 |
-| 400 | `ASSIGNEE_NOT_OWNER` | 개인 과제의 세부 과제 담당자를 소유자가 아닌 사용자로 지정하려고 시도함 |
 | 401 | `TOKEN_NOT_FOUND` | 요청 헤더(Header)에 인증 토큰이 존재하지 않음 |
 | 401 | `TOKEN_EXPIRED` | 제공된 인증 토큰의 유효 기간이 만료됨 |
 | 401 | `INVALID_CREDENTIALS` | 로그인 시 입력한 이메일 또는 비밀번호가 일치하지 않음 |
 | 403 | `FORBIDDEN_TASK` | 해당 과제가 속한 팀의 팀원이 아니거나, 접근/수정 권한이 없음 |
 | 403 | `FORBIDDEN_PERSONAL_TASK` | 다른 사용자의 개인 과제에 접근하거나 수정하려고 시도함 |
-| 403 | `TASK_TYPE_MISMATCH` | 요청한 화면의 과제 종류(type)와 실제 과제 종류가 다름 |
-| 403 | `FORBIDDEN_FOLDER` | 다른 사용자의 폴더에 과제를 넣으려고 시도함 |
-| 403 | `FORBIDDEN_INVITE_CODE` | 개인 과제에 초대 코드를 발급하려고 시도함 |
-| 403 | `EXPIRED_INVITE_CODE` | 만료된 초대 코드로 과제에 참여하려고 시도함 |
 | 403 | `USER_DELETED` | 이미 탈퇴 처리된 사용자가 서비스 리소스에 접근하려고 시도함 |
 | 404 | `USER_NOT_FOUND` | 요청한 정보를 기반으로 DB에서 해당 사용자를 찾을 수 없음 |
 | 404 | `TASK_NOT_FOUND` | 요청한 과제(Task)가 존재하지 않거나 이미 삭제됨 |
 | 404 | `SUBTASK_NOT_FOUND` | 요청한 세부 과제(Subtask)가 존재하지 않거나 이미 삭제됨 |
-| 404 | `MEMBER_NOT_FOUND` | 요청한 사용자가 해당 과제의 참여자(Member)가 아님 |
-| 404 | `FOLDER_NOT_FOUND` | 요청한 폴더(Folder)가 존재하지 않음 |
-| 404 | `DEFAULT_FOLDER_NOT_FOUND` | 사용자의 기본 폴더(지정안함)가 존재하지 않음 |
-| 404 | `INVITE_CODE_NOT_FOUND` | 초대 코드에 해당하는 팀 과제가 존재하지 않음 |
 | 404 | `ALARM_NOT_FOUND` | 삭제하거나 읽음 처리하려는 대상 알림(Alarm)이 존재하지 않음 |
 | 500 | `EMAIL_SEND_FAILED` | 외부 API 연동 문제로 이메일 인증 코드 및 임시 비밀번호 발송에 실패함 |
 | 500 | `SIGNUP_FAILED` | DB 트랜잭션 오류 등의 서버 문제로 회원가입 처리에 실패함 |
