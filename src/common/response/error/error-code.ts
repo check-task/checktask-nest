@@ -75,6 +75,11 @@ export const ERROR_CODE = {
     errorCode: 'DUPLICATE_COLOR',
     message: '이미 존재하는 중복된 폴더 색상을 사용하려고 시도함',
   },
+  DUPLICATE_MEMBER: {
+    status: HttpStatus.BAD_REQUEST,
+    errorCode: 'DUPLICATE_MEMBER',
+    message: '이미 참여 중인 과제에 다시 참여하려고 시도함',
+  },
   MAX_FOLDER_LIMIT: {
     status: HttpStatus.BAD_REQUEST,
     errorCode: 'MAX_FOLDER_LIMIT',
@@ -89,6 +94,33 @@ export const ERROR_CODE = {
     status: HttpStatus.BAD_REQUEST,
     errorCode: 'INVALID_DEADLINE',
     message: '세부 과제의 마감일이 부모 과제의 마감일을 초과하여 설정됨',
+  },
+  TASK_DEADLINE_EXPIRED: {
+    status: HttpStatus.BAD_REQUEST,
+    errorCode: 'TASK_DEADLINE_EXPIRED',
+    message:
+      '마감일이 이미 지난 과제에 세부 과제를 추가하거나 세부 과제 마감일을 변경하려고 시도함',
+  },
+  DATA_NOT_PROVIDED: {
+    status: HttpStatus.BAD_REQUEST,
+    errorCode: 'DATA_NOT_PROVIDED',
+    message: '수정할 데이터가 요청 본문에 없음',
+  },
+  INVALID_TASK_TYPE: {
+    status: HttpStatus.BAD_REQUEST,
+    errorCode: 'INVALID_TASK_TYPE',
+    message: '이미 팀 과제인 과제를 팀 과제로 변경하려고 시도함',
+  },
+  ASSIGNEE_NOT_IN_TASK: {
+    status: HttpStatus.BAD_REQUEST,
+    errorCode: 'ASSIGNEE_NOT_IN_TASK',
+    message: '과제 참여자가 아닌 사용자를 세부 과제 담당자로 지정하려고 시도함',
+  },
+  ASSIGNEE_NOT_OWNER: {
+    status: HttpStatus.BAD_REQUEST,
+    errorCode: 'ASSIGNEE_NOT_OWNER',
+    message:
+      '개인 과제의 세부 과제 담당자를 소유자가 아닌 사용자로 지정하려고 시도함',
   },
   SUBTASK_NO_ASSIGNEE: {
     status: HttpStatus.BAD_REQUEST,
@@ -119,6 +151,26 @@ export const ERROR_CODE = {
     status: HttpStatus.FORBIDDEN,
     errorCode: 'FORBIDDEN_PERSONAL_TASK',
     message: '다른 사용자의 개인 과제에 접근하거나 수정하려고 시도함',
+  },
+  TASK_TYPE_MISMATCH: {
+    status: HttpStatus.FORBIDDEN,
+    errorCode: 'TASK_TYPE_MISMATCH',
+    message: '요청한 화면의 과제 종류(type)와 실제 과제 종류가 다름',
+  },
+  FORBIDDEN_FOLDER: {
+    status: HttpStatus.FORBIDDEN,
+    errorCode: 'FORBIDDEN_FOLDER',
+    message: '다른 사용자의 폴더에 과제를 넣으려고 시도함',
+  },
+  FORBIDDEN_INVITE_CODE: {
+    status: HttpStatus.FORBIDDEN,
+    errorCode: 'FORBIDDEN_INVITE_CODE',
+    message: '개인 과제에 초대 코드를 발급하려고 시도함',
+  },
+  EXPIRED_INVITE_CODE: {
+    status: HttpStatus.FORBIDDEN,
+    errorCode: 'EXPIRED_INVITE_CODE',
+    message: '만료된 초대 코드로 과제에 참여하려고 시도함',
   },
   TASK_ACCESS_DENIED: {
     status: HttpStatus.FORBIDDEN,
@@ -155,6 +207,26 @@ export const ERROR_CODE = {
     status: HttpStatus.NOT_FOUND,
     errorCode: 'SUBTASK_NOT_FOUND',
     message: '요청한 세부 과제(Subtask)가 존재하지 않거나 이미 삭제됨',
+  },
+  MEMBER_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    errorCode: 'MEMBER_NOT_FOUND',
+    message: '요청한 사용자가 해당 과제의 참여자(Member)가 아님',
+  },
+  FOLDER_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    errorCode: 'FOLDER_NOT_FOUND',
+    message: '요청한 폴더(Folder)가 존재하지 않음',
+  },
+  DEFAULT_FOLDER_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    errorCode: 'DEFAULT_FOLDER_NOT_FOUND',
+    message: '사용자의 기본 폴더(지정안함)가 존재하지 않음',
+  },
+  INVITE_CODE_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    errorCode: 'INVITE_CODE_NOT_FOUND',
+    message: '초대 코드에 해당하는 팀 과제가 존재하지 않음',
   },
   ALARM_NOT_FOUND: {
     status: HttpStatus.NOT_FOUND,

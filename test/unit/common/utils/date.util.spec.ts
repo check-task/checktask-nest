@@ -1,6 +1,7 @@
 import {
   addDays,
   addHours,
+  diffKstDays,
   endOfKstDay,
   startOfKstDay,
   toKstString,
@@ -35,5 +36,29 @@ describe('date.util', () => {
     );
     expect(addDays(deadline, 1).toISOString()).toBe('2026-10-21T14:59:00.000Z');
     expect(deadline.toISOString()).toBe('2026-10-20T14:59:00.000Z');
+  });
+
+  it('diffKstDays는 시각과 무관하게 KST 날짜 차이를 센다', () => {
+    // KST 20일 23:00 → KST 21일 00:30 (UTC로는 같은 날)
+    expect(
+      diffKstDays(
+        new Date('2026-10-20T14:00:00.000Z'),
+        new Date('2026-10-20T15:30:00.000Z'),
+      ),
+    ).toBe(1);
+    // 같은 KST 날짜
+    expect(
+      diffKstDays(
+        new Date('2026-10-20T15:00:00.000Z'),
+        new Date('2026-10-21T14:59:59.999Z'),
+      ),
+    ).toBe(0);
+    // 지난 날짜는 음수
+    expect(
+      diffKstDays(
+        new Date('2026-10-23T03:00:00.000Z'),
+        new Date('2026-10-20T03:00:00.000Z'),
+      ),
+    ).toBe(-3);
   });
 });

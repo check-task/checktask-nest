@@ -12,6 +12,8 @@ import { MailModule } from './common/mail/mail.module';
 import { RedisModule } from './common/redis/redis.module';
 import { S3Module } from './common/s3/s3.module';
 import { HealthModule } from './health/health.module';
+import { ReferenceModule } from './references/reference.module';
+import { TaskModule } from './tasks/task.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { HealthModule } from './health/health.module';
     ScheduleModule.forRoot(), // cron (alarms/alarm.scheduler.ts)
     HealthModule,
     AlarmModule,
+    ReferenceModule,
+    TaskModule,
   ],
 })
 export class AppModule {}

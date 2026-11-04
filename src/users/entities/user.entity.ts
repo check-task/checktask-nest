@@ -10,26 +10,27 @@ import {
 import { Provider } from '../../common/enums';
 import { Role } from '../role.enum';
 
-// 기존 DB(Prisma)의 User 테이블
 @Entity('User')
+@Index('User_user_id_key', ['id'], { unique: true })
 @Index('User_email_key', ['email'], { unique: true })
+@Index('User_deleted_at_idx', ['deletedAt'])
 @Index('User_provider_provider_id_key', ['provider', 'providerId'], {
   unique: true,
 })
-@Index('User_deleted_at_idx', ['deletedAt'])
-// 기본 키와 겹치지만 레거시 DB에 있는 unique 인덱스
-@Index('User_user_id_key', ['id'], { unique: true })
 export class User {
-  @PrimaryGeneratedColumn({ name: 'user_id' })
+  @PrimaryGeneratedColumn({
+    name: 'user_id',
+    primaryKeyConstraintName: 'User_pkey',
+  })
   id: number;
 
-  @Column({ length: 30 })
+  @Column({ type: 'varchar', length: 30 })
   nickname: string;
 
-  @Column({ name: 'phone_num', length: 20 })
+  @Column({ name: 'phone_num', type: 'varchar', length: 20 })
   phoneNum: string;
 
-  @Column({ length: 50 })
+  @Column({ type: 'varchar', length: 50 })
   email: string;
 
   @Column({
