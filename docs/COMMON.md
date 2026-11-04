@@ -141,6 +141,9 @@ Error: 환경 변수가 없거나 올바르지 않습니다. .env를 확인하�
 | enum | 값 | 용도 |
 |---|---|---|
 | `Provider` | `KAKAO`, `APPLE` | 소셜 로그인 제공자 (DB `Provider` enum과 동일) |
+| `TaskType` | `PERSONAL`, `TEAM` | 과제 유형 (DB `TaskType` enum과 동일) |
+| `TaskStatus` | `PENDING`, `PROGRESS`, `COMPLETED` | 과제 진행 상태 (DB `TaskStatus` enum과 동일) |
+| `SubTaskStatus` | `PENDING`, `PROGRESS`, `COMPLETED` | 세부 과제 진행 상태 (DB `SubTaskStatus` enum과 동일) |
 
 ---
 
@@ -243,6 +246,7 @@ return toOffsetPage(items.map(TaskResponseDto.from), totalCount, query, 'taskLis
 | `set(key, value, ttlSeconds?)` | 값 저장. `ttlSeconds`를 주면 해당 초 뒤 만료 |
 | `get(key)` | 값 조회 (없으면 `null`) |
 | `del(key)` | 키 삭제 |
+| `setIfNotExists(key, value, ttlSeconds)` | 키가 없을 때만 저장하고 저장했으면 `true` (`SET NX EX`, cron 락용) |
 | `incr(key, ttlSeconds?)` | 1 증가 후 값을 반환. 처음 생성된 키일 때만 TTL을 겁니다. (일일 횟수 제한용) |
 
 ### 사용 규칙

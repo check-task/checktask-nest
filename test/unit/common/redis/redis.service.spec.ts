@@ -57,6 +57,27 @@ describe('RedisService', () => {
     expect(client.set).toHaveBeenCalledWith('key', 'value');
   });
 
+  it('setIfNotExists는 NX·EX 옵션으로 저장하고, 저장했으면 true를 반환한다', async () => {
+    client.set.mockResolvedValueOnce('OK');
+    await expect(
+      service.setIfNotExists('lock:alarm_push', '1', 290),
+    ).resolves.toBe(true);
+    expect(client.set).toHaveBeenCalledWith(
+      'lock:alarm_push',
+      '1',
+      'EX',
+      290,
+      'NX',
+    );
+  });
+
+  it('setIfNotExists는 키가 이미 있으면 false를 반환한다', async () => {
+    client.set.mockResolvedValueOnce(null);
+    await expect(
+      service.setIfNotExists('lock:alarm_push', '1', 290),
+    ).resolves.toBe(false);
+  });
+
   it('get은 저장된 값을, 없으면 null을 반환한다', async () => {
     client.get.mockResolvedValueOnce('123456').mockResolvedValueOnce(null);
     await expect(service.get('verify:01012345678')).resolves.toBe('123456');
