@@ -245,6 +245,8 @@ throw new ForbiddenError(); // 인자를 생략하면 기본 errorCode·reason
 | 400 | `DUPLICATE_NAME` | 이미 존재하는 중복된 폴더 이름을 사용하려고 시도함 |
 | 400 | `DUPLICATE_COLOR` | 이미 존재하는 중복된 폴더 색상을 사용하려고 시도함 |
 | 400 | `MAX_FOLDER_LIMIT` | 생성 가능한 폴더의 최대 제한 개수를 초과함 |
+| 400 | `PROTECTED_FOLDER` | 기본 폴더('지정안함')를 수정하거나 삭제하려고 시도함 |
+| 400 | `FOLDER_NOT_EMPTY` | 과제가 남아 있는 폴더를 과제 이동 없이 삭제하려고 시도함 |
 | 400 | `INVALID_DATE` | 요청한 날짜 데이터가 유효한 날짜 형식이 아님 |
 | 400 | `INVALID_DEADLINE` | 세부 과제의 마감일이 부모 과제의 마감일을 초과하여 설정됨 |
 | 400 | `SUBTASK_NO_ASSIGNEE` | 담당자가 없는 세부 과제의 알림을 켜려고 시도함 |
@@ -262,10 +264,12 @@ throw new ForbiddenError(); // 인자를 생략하면 기본 errorCode·reason
 | 404 | `SUBTASK_NOT_FOUND` | 요청한 세부 과제(Subtask)가 존재하지 않거나 이미 삭제됨 |
 | 404 | `ALARM_NOT_FOUND` | 삭제하거나 읽음 처리하려는 대상 알림(Alarm)이 존재하지 않음 |
 | 404 | `FCM_TOKEN_NOT_FOUND` | 푸시를 보낼 사용자의 디바이스(FCM) 토큰이 Redis에 존재하지 않음 |
+| 404 | `FOLDER_NOT_FOUND` | 요청한 폴더(Folder)가 존재하지 않음 |
 | 500 | `PUSH_SEND_FAILED` | 외부 API(FCM) 연동 문제로 푸시 알림 발송에 실패함 |
 | 500 | `EMAIL_SEND_FAILED` | 외부 API 연동 문제로 이메일 인증 코드 및 임시 비밀번호 발송에 실패함 |
 | 500 | `SIGNUP_FAILED` | DB 트랜잭션 오류 등의 서버 문제로 회원가입 처리에 실패함 |
 | 500 | `USER_WITHDRAW_FAILED` | DB 트랜잭션 오류 등의 서버 문제로 회원 탈퇴 처리에 실패함 |
+| 500 | `DEFAULT_FOLDER_NOT_FOUND` | 과제를 옮길 사용자의 기본 폴더('지정안함')가 DB에 없음 |
 
 ## 7. 테스트
 
