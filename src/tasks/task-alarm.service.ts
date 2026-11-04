@@ -3,7 +3,7 @@ import { EntityManager, In, IsNull } from 'typeorm';
 import { AlarmType, SubTaskStatus } from '../common/enums';
 import { addHours } from '../common/utils/date.util';
 import { UserAlarmSetting } from '../users/entities/user-alarm-setting.entity';
-import { UserAlarm } from './user-alarm.entity';
+import { UserAlarm } from '../alarms/user-alarm.entity';
 
 // 알림 설정이 없는 유저의 기본값 (마감 N시간 전)
 const DEFAULT_ALARM_HOURS = 24;
@@ -56,12 +56,12 @@ const isNotifiable = (subTask: AlarmSubTask): subTask is NotifiableSubTask =>
   subTask.isAlarm && subTask.endDate !== null;
 
 /**
- * alarms 도메인 Service — 다른 도메인의 변경에 맞춰 알림(UserAlarm)을 만들고·고치고·지운다.
+ * 과제·세부 과제 변경에 맞춰 알림(UserAlarm)을 만들고·고치고·지운다.
  * 모든 메서드는 호출한 쪽의 트랜잭션(manager) 안에서 실행된다.
- * 발송(cron)·알림 API는 alarms 도메인 이관 때 추가한다.
+ * 알림 조회·발송(cron)·알림 API는 alarms 도메인이 맡는다.
  */
 @Injectable()
-export class AlarmService {
+export class TaskAlarmService {
   /** 과제 마감 알림 (마감 deadlineAlarm시간 전) */
   async createTaskAlarms(
     manager: EntityManager,

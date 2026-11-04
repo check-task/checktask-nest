@@ -1,11 +1,11 @@
 import { DataSource, Repository } from 'typeorm';
-import { AlarmService } from '../../../src/alarms/alarm.service';
 import { SubTaskStatus, TaskType } from '../../../src/common/enums';
 import { CustomError } from '../../../src/common/response/error/custom.error';
 import { Folder } from '../../../src/folders/folder.entity';
 import { ReferenceService } from '../../../src/references/reference.service';
 import { Member } from '../../../src/tasks/entities/member.entity';
 import { SubTaskAssignee } from '../../../src/tasks/entities/sub-task-assignee.entity';
+import { TaskAlarmService } from '../../../src/tasks/task-alarm.service';
 import { SubTask } from '../../../src/tasks/entities/sub-task.entity';
 import { TaskPriority } from '../../../src/tasks/entities/task-priority.entity';
 import { Task } from '../../../src/tasks/entities/task.entity';
@@ -121,7 +121,7 @@ describe('TaskService', () => {
       asRepository<TaskPriority>('taskPriority'),
       asRepository<User>('user'),
       asRepository<Folder>('folder'),
-      alarmService as unknown as AlarmService,
+      alarmService as unknown as TaskAlarmService,
       referenceService as unknown as ReferenceService,
     );
   });

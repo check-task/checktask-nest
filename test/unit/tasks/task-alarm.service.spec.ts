@@ -1,16 +1,16 @@
 import { EntityManager } from 'typeorm';
-import { AlarmService } from '../../../src/alarms/alarm.service';
 import { UserAlarm } from '../../../src/alarms/user-alarm.entity';
+import { TaskAlarmService } from '../../../src/tasks/task-alarm.service';
 import { AlarmType, SubTaskStatus } from '../../../src/common/enums';
 import { UserAlarmSetting } from '../../../src/users/entities/user-alarm-setting.entity';
 
 const HOUR = 3600_000;
 const DEADLINE = new Date('2026-10-20T14:59:00.000Z');
 
-describe('AlarmService', () => {
+describe('TaskAlarmService', () => {
   let manager: Record<string, ReturnType<typeof vi.fn>>;
   let findSettings: ReturnType<typeof vi.fn>;
-  let service: AlarmService;
+  let service: TaskAlarmService;
 
   beforeEach(() => {
     // 유저 1만 알림 설정이 있다 (과제 12시간 전, 세부 과제 6시간 전)
@@ -26,7 +26,7 @@ describe('AlarmService', () => {
         entity === UserAlarmSetting ? { find: findSettings } : undefined,
       ),
     };
-    service = new AlarmService();
+    service = new TaskAlarmService();
   });
 
   const em = () => manager as unknown as EntityManager;

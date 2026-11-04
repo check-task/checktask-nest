@@ -10,7 +10,6 @@ import {
   Not,
   Repository,
 } from 'typeorm';
-import { AlarmService, AssignedSubTask } from '../alarms/alarm.service';
 import { SubTaskStatus, TaskType } from '../common/enums';
 import { OffsetPage, toOffsetPage } from '../common/pagination/pagination.dto';
 import {
@@ -24,6 +23,7 @@ import { ReferenceService } from '../references/reference.service';
 import { User } from '../users/entities/user.entity';
 import { MEMBER_ROLE, Member } from './entities/member.entity';
 import { SubTaskAssignee } from './entities/sub-task-assignee.entity';
+import { AssignedSubTask, TaskAlarmService } from './task-alarm.service';
 import { SubTask } from './entities/sub-task.entity';
 import { TaskPriority } from './entities/task-priority.entity';
 import { Task } from './entities/task.entity';
@@ -143,7 +143,7 @@ export class TaskService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Folder)
     private readonly folderRepository: Repository<Folder>,
-    private readonly alarmService: AlarmService,
+    private readonly taskAlarmService: TaskAlarmService,
     private readonly referenceService: ReferenceService,
   ) {}
 
@@ -263,8 +263,8 @@ export class TaskService {
         })),
       );
 
-      await this.alarmService.createTaskAlarms(manager, task, [userId], 0);
-      await this.alarmService.createSubTaskAlarms(
+      await this.taskAlarmService.createTaskAlarms(manager, task, [userId], 0);
+      await this.taskAlarmService.createSubTaskAlarms(
         manager,
         subTasks.map((subTask, index) => ({
           subTask,
@@ -371,7 +371,7 @@ export class TaskService {
       });
       const nickname =
         (await this.getNickname(manager, userId)) ?? '새로운 팀원';
-      await this.alarmService.createMemberJoinAlarms(
+      await this.taskAlarmService.createMemberJoinAlarms(
         manager,
         task,
         others.map((other) => other.userId),
@@ -383,7 +383,7 @@ export class TaskService {
           where: { taskId: task.id },
           select: { id: true, status: true },
         });
-        await this.alarmService.createTaskAlarms(
+        await this.taskAlarmService.createTaskAlarms(
           manager,
           task,
           [userId],
@@ -444,7 +444,7 @@ export class TaskService {
     await this.dataSource.transaction(async (manager) => {
       await manager.update(SubTask, subTask.id, { endDate });
       // 마감일이 없어지면 알림을 지우고, 생기거나 바뀌면 알림을 만들거나 시각을 고친다
-      await this.alarmService.syncSubTaskAlarms(manager, [
+      await this.taskAlarmService.syncSubTaskAlarms(manager, [
         {
           subTask: { ...this.toAlarmSubTask(subTask), endDate },
           assigneeUserIds: subTask.assignees.map(
@@ -496,7 +496,7 @@ export class TaskService {
       await this.replaceAssignees(manager, subTask.id, nextAssignees);
       await manager.update(SubTask, subTask.id, { updatedAt: new Date() });
       // 빠진 담당자의 알림은 지우고, 새 담당자에게 알림을 만든다
-      await this.alarmService.syncSubTaskAlarms(manager, [
+      await this.taskAlarmService.syncSubTaskAlarms(manager, [
         {
           subTask: this.toAlarmSubTask(subTask),
           assigneeUserIds: nextAssignees.map((member) => member.userId),
@@ -551,7 +551,11 @@ export class TaskService {
         });
       }
       if (deadline)
-        await this.alarmService.rescheduleTaskAlarms(manager, taskId, deadline);
+        await this.taskAlarmService.rescheduleTaskAlarms(
+          manager,
+          taskId,
+          deadline,
+        );
     });
     return { taskId };
   }
@@ -856,7 +860,7 @@ export class TaskService {
       await this.insertAssignees(manager, [
         { subTaskId: subTask.id, members: assignees },
       ]);
-      await this.alarmService.createSubTaskAlarms(manager, [
+      await this.taskAlarmService.createSubTaskAlarms(manager, [
         {
           subTask,
           assigneeUserIds: assignees.map((member) => member.userId),
@@ -972,7 +976,7 @@ export class TaskService {
       for (const [subTaskId, nextMembers] of nextAssigneesBySubTaskId) {
         await this.replaceAssignees(manager, subTaskId, nextMembers);
       }
-      await this.alarmService.syncSubTaskAlarms(
+      await this.taskAlarmService.syncSubTaskAlarms(
         manager,
         subTasks.map((subTask) => ({
           subTask: this.toAlarmSubTask(subTask),
@@ -1038,7 +1042,7 @@ export class TaskService {
 
     await this.dataSource.transaction(async (manager) => {
       await manager.update(Task, taskId, { deadline: dto.deadline });
-      await this.alarmService.rescheduleTaskAlarms(
+      await this.taskAlarmService.rescheduleTaskAlarms(
         manager,
         taskId,
         dto.deadline,
@@ -1403,7 +1407,7 @@ export class TaskService {
     member: Member,
   ): Promise<void> {
     await manager.delete(SubTaskAssignee, { memberId: member.id });
-    await this.alarmService.deleteUserTaskAlarms(
+    await this.taskAlarmService.deleteUserTaskAlarms(
       manager,
       member.userId,
       member.taskId,
