@@ -2,7 +2,7 @@ import { DataSource, Repository } from 'typeorm';
 import { AlarmService } from '../../../src/alarms/alarm.service';
 import { SubTaskStatus, TaskType } from '../../../src/common/enums';
 import { CustomError } from '../../../src/common/response/error/custom.error';
-import { FolderService } from '../../../src/folders/folder.service';
+import { Folder } from '../../../src/folders/folder.entity';
 import { ReferenceService } from '../../../src/references/reference.service';
 import { Member } from '../../../src/tasks/entities/member.entity';
 import { SubTaskAssignee } from '../../../src/tasks/entities/sub-task-assignee.entity';
@@ -15,7 +15,7 @@ import {
   calculateProgressRate,
 } from '../../../src/tasks/task.service';
 import { TaskStatus } from '../../../src/tasks/task-status.enum';
-import { UserService } from '../../../src/users/user.service';
+import { User } from '../../../src/users/entities/user.entity';
 
 const createRepository = () => ({
   findOne: vi.fn(),
@@ -64,8 +64,6 @@ const errorCodeOf = (promise: Promise<unknown>) =>
 describe('TaskService', () => {
   let repositories: Record<string, ReturnType<typeof createRepository>>;
   let manager: Record<string, ReturnType<typeof vi.fn>>;
-  let userService: Record<string, ReturnType<typeof vi.fn>>;
-  let folderService: Record<string, ReturnType<typeof vi.fn>>;
   let alarmService: Record<string, ReturnType<typeof vi.fn>>;
   let referenceService: Record<string, ReturnType<typeof vi.fn>>;
   let service: TaskService;
@@ -78,7 +76,11 @@ describe('TaskService', () => {
       subTask: createRepository(),
       member: createRepository(),
       taskPriority: createRepository(),
+      user: createRepository(),
+      folder: createRepository(),
     };
+    repositories.user.exists.mockResolvedValue(true);
+    repositories.folder.findOne.mockResolvedValue({ id: 7, userId: USER_ID });
     manager = {
       create: vi.fn((_: unknown, data: object) => ({ ...data })),
       save: vi.fn(async (entity: object | object[]) =>
@@ -90,13 +92,9 @@ describe('TaskService', () => {
       update: vi.fn(),
       delete: vi.fn(),
       find: vi.fn().mockResolvedValue([]),
+      findOne: vi.fn().mockResolvedValue({ id: USER_ID, nickname: '소윤' }),
       maximum: vi.fn().mockResolvedValue(null),
     };
-    userService = {
-      assertUserExists: vi.fn(),
-      getNickname: vi.fn().mockResolvedValue('소윤'),
-    };
-    folderService = { resolveFolderId: vi.fn().mockResolvedValue(7) };
     alarmService = {
       createTaskAlarms: vi.fn(),
       createSubTaskAlarms: vi.fn(),
@@ -121,8 +119,8 @@ describe('TaskService', () => {
       asRepository<SubTask>('subTask'),
       asRepository<Member>('member'),
       asRepository<TaskPriority>('taskPriority'),
-      userService as unknown as UserService,
-      folderService as unknown as FolderService,
+      asRepository<User>('user'),
+      asRepository<Folder>('folder'),
       alarmService as unknown as AlarmService,
       referenceService as unknown as ReferenceService,
     );
@@ -176,6 +174,54 @@ describe('TaskService', () => {
     });
   });
 
+  describe('사용자·폴더 확인', () => {
+    const createDto = (folderId?: number | null): CreateTaskDto =>
+      Object.assign(new CreateTaskDto(), {
+        title: '중간 발표',
+        deadline: DEADLINE,
+        folderId,
+      });
+
+    it('사용자가 없으면 USER_NOT_FOUND', async () => {
+      repositories.user.exists.mockResolvedValue(false);
+      expect(
+        await errorCodeOf(
+          service.getCompletedTasks(
+            {} as Parameters<TaskService['getCompletedTasks']>[0],
+            USER_ID,
+          ),
+        ),
+      ).toBe('USER_NOT_FOUND');
+    });
+
+    it('folderId가 없으면 "지정안함" 폴더를 쓴다', async () => {
+      await service.createTask(createDto(null), USER_ID);
+      expect(repositories.folder.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: USER_ID, folderTitle: '지정안함' },
+        }),
+      );
+    });
+
+    it('기본 폴더가 없으면 DEFAULT_FOLDER_NOT_FOUND', async () => {
+      repositories.folder.findOne.mockResolvedValue(null);
+      expect(await errorCodeOf(service.createTask(createDto(), USER_ID))).toBe(
+        'DEFAULT_FOLDER_NOT_FOUND',
+      );
+    });
+
+    it('폴더가 없으면 FOLDER_NOT_FOUND, 다른 사용자 폴더면 FORBIDDEN_FOLDER', async () => {
+      repositories.folder.findOne.mockResolvedValueOnce(null);
+      expect(await errorCodeOf(service.createTask(createDto(3), USER_ID))).toBe(
+        'FOLDER_NOT_FOUND',
+      );
+      repositories.folder.findOne.mockResolvedValueOnce({ id: 3, userId: 2 });
+      expect(await errorCodeOf(service.createTask(createDto(3), USER_ID))).toBe(
+        'FORBIDDEN_FOLDER',
+      );
+    });
+  });
+
   describe('createTask', () => {
     const dto = (overrides: Partial<CreateTaskDto> = {}): CreateTaskDto =>
       Object.assign(new CreateTaskDto(), {
@@ -184,9 +230,11 @@ describe('TaskService', () => {
         ...overrides,
       });
 
-    it('폴더는 FolderService로 확인한다', async () => {
+    it('지정한 폴더가 본인 폴더인지 확인한다', async () => {
       await service.createTask(dto({ folderId: 3 }), USER_ID);
-      expect(folderService.resolveFolderId).toHaveBeenCalledWith(USER_ID, 3);
+      expect(repositories.folder.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 3 } }),
+      );
       expect(manager.create).toHaveBeenCalledWith(
         Member,
         expect.objectContaining({ folderId: 7, role: false }),

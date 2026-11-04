@@ -2,12 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { EntityManager, In, IsNull } from 'typeorm';
 import { AlarmType, SubTaskStatus } from '../common/enums';
 import { addHours } from '../common/utils/date.util';
-import {
-  AlarmHours,
-  DEFAULT_ALARM_HOURS,
-  UserService,
-} from '../users/user.service';
+import { UserAlarmSetting } from '../users/entities/user-alarm-setting.entity';
 import { UserAlarm } from './user-alarm.entity';
+
+// 알림 설정이 없는 유저의 기본값 (마감 N시간 전)
+const DEFAULT_ALARM_HOURS = 24;
+
+type AlarmHours = Pick<UserAlarmSetting, 'deadlineAlarm' | 'taskAlarm'>;
 
 // UserAlarm.title·alarm_content는 varchar(50)
 const ALARM_TEXT_MAX_LENGTH = 50;
@@ -61,8 +62,6 @@ const isNotifiable = (subTask: AlarmSubTask): subTask is NotifiableSubTask =>
  */
 @Injectable()
 export class AlarmService {
-  constructor(private readonly userService: UserService) {}
-
   /** 과제 마감 알림 (마감 deadlineAlarm시간 전) */
   async createTaskAlarms(
     manager: EntityManager,
@@ -71,7 +70,7 @@ export class AlarmService {
     progressRate: number,
   ): Promise<void> {
     if (userIds.length === 0) return;
-    const hours = await this.userService.getAlarmHours(userIds, manager);
+    const hours = await this.getAlarmHours(manager, userIds);
     await manager.insert(
       UserAlarm,
       userIds.map((userId) =>
@@ -91,9 +90,9 @@ export class AlarmService {
         : [],
     );
     if (targets.length === 0) return;
-    const hours = await this.userService.getAlarmHours(
-      targets.map((target) => target.userId),
+    const hours = await this.getAlarmHours(
       manager,
+      targets.map((target) => target.userId),
     );
     await manager.insert(
       UserAlarm,
@@ -142,9 +141,9 @@ export class AlarmService {
       ],
     });
     if (alarms.length === 0) return;
-    const hours = await this.userService.getAlarmHours(
-      alarms.map((alarm) => alarm.userId),
+    const hours = await this.getAlarmHours(
       manager,
+      alarms.map((alarm) => alarm.userId),
     );
     for (const alarm of alarms) {
       alarm.alarmDate = addHours(
@@ -168,9 +167,9 @@ export class AlarmService {
     const existingAlarms = await manager.find(UserAlarm, {
       where: { subTaskId: In(items.map((item) => item.subTask.id)) },
     });
-    const hours = await this.userService.getAlarmHours(
-      items.flatMap((item) => item.assigneeUserIds),
+    const hours = await this.getAlarmHours(
       manager,
+      items.flatMap((item) => item.assigneeUserIds),
     );
 
     const alarmsToSave: UserAlarm[] = [];
@@ -273,5 +272,18 @@ export class AlarmService {
       alarmDate: addHours(subTask.endDate, -alarmHours),
       isRead: false,
     };
+  }
+
+  /** 유저별 알림 설정 (설정이 없는 유저는 Map에 없음 → DEFAULT_ALARM_HOURS 사용) */
+  private async getAlarmHours(
+    manager: EntityManager,
+    userIds: number[],
+  ): Promise<Map<number, AlarmHours>> {
+    if (userIds.length === 0) return new Map();
+    const settings = await manager.getRepository(UserAlarmSetting).find({
+      where: { userId: In([...new Set(userIds)]) },
+      select: { userId: true, deadlineAlarm: true, taskAlarm: true },
+    });
+    return new Map(settings.map((setting) => [setting.userId, setting]));
   }
 }

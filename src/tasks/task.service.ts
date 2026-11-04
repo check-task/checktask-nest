@@ -19,9 +19,9 @@ import {
   NotFoundError,
 } from '../common/response/error/custom.error';
 import { addDays } from '../common/utils/date.util';
-import { FolderService } from '../folders/folder.service';
+import { DEFAULT_FOLDER_TITLE, Folder } from '../folders/folder.entity';
 import { ReferenceService } from '../references/reference.service';
-import { UserService } from '../users/user.service';
+import { User } from '../users/entities/user.entity';
 import { MEMBER_ROLE, Member } from './entities/member.entity';
 import { SubTaskAssignee } from './entities/sub-task-assignee.entity';
 import { SubTask } from './entities/sub-task.entity';
@@ -139,8 +139,10 @@ export class TaskService {
     private readonly memberRepository: Repository<Member>,
     @InjectRepository(TaskPriority)
     private readonly taskPriorityRepository: Repository<TaskPriority>,
-    private readonly userService: UserService,
-    private readonly folderService: FolderService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Folder)
+    private readonly folderRepository: Repository<Folder>,
     private readonly alarmService: AlarmService,
     private readonly referenceService: ReferenceService,
   ) {}
@@ -153,7 +155,7 @@ export class TaskService {
     query: GetCompletedTasksQueryDto,
     userId: number,
   ): Promise<OffsetPage<'tasks', CompletedTaskResponseDto>> {
-    await this.userService.assertUserExists(userId);
+    await this.assertUserExists(userId);
 
     // 내 Member 행 기준으로 조회해 내 폴더 정보까지 한 번에 가져온다
     const [members, totalCount] = await this.memberRepository.findAndCount({
@@ -198,10 +200,7 @@ export class TaskService {
     dto: CreateTaskDto,
     userId: number,
   ): Promise<TaskIdResponseDto> {
-    const folderId = await this.folderService.resolveFolderId(
-      userId,
-      dto.folderId,
-    );
+    const folderId = await this.resolveFolderId(userId, dto.folderId);
     for (const subTask of dto.subTasks) {
       this.assertSubTaskDeadline(
         subTask.endDate,
@@ -332,10 +331,7 @@ export class TaskService {
     dto: JoinTaskDto,
     userId: number,
   ): Promise<JoinTaskResponseDto> {
-    const folderId = await this.folderService.resolveFolderId(
-      userId,
-      dto.folderId,
-    );
+    const folderId = await this.resolveFolderId(userId, dto.folderId);
 
     const task = await this.taskRepository.findOne({
       where: { inviteCode: dto.inviteCode, type: TaskType.TEAM },
@@ -374,7 +370,7 @@ export class TaskService {
         select: { id: true, userId: true },
       });
       const nickname =
-        (await this.userService.getNickname(userId, manager)) ?? '새로운 팀원';
+        (await this.getNickname(manager, userId)) ?? '새로운 팀원';
       await this.alarmService.createMemberJoinAlarms(
         manager,
         task,
@@ -536,7 +532,7 @@ export class TaskService {
     const targetFolderId =
       folderId === undefined
         ? undefined
-        : await this.folderService.resolveFolderId(userId, folderId);
+        : await this.resolveFolderId(userId, folderId);
     if (deadline) await this.assertTaskDeadlineAfterSubTasks(taskId, deadline);
 
     await this.dataSource.transaction(async (manager) => {
@@ -1413,5 +1409,67 @@ export class TaskService {
       member.taskId,
     );
     await manager.delete(Member, member.id);
+  }
+
+  /**
+   * @throws NotFoundError(USER_NOT_FOUND) - 사용자가 없을 때
+   */
+  private async assertUserExists(userId: number): Promise<void> {
+    const exists = await this.userRepository.exists({ where: { id: userId } });
+    if (!exists) {
+      throw new NotFoundError(
+        'USER_NOT_FOUND',
+        '해당 사용자를 찾을 수 없습니다.',
+      );
+    }
+  }
+
+  /** 닉네임 조회 (없으면 null). 트랜잭션 안에서 부른다 */
+  private async getNickname(
+    manager: EntityManager,
+    userId: number,
+  ): Promise<string | null> {
+    const user = await manager.findOne(User, {
+      where: { id: userId },
+      select: { id: true, nickname: true },
+    });
+    return user?.nickname ?? null;
+  }
+
+  /**
+   * folderId가 없으면 "지정안함" 폴더, 있으면 본인 폴더인지 확인해 ID를 반환한다.
+   * @throws NotFoundError(DEFAULT_FOLDER_NOT_FOUND) - 기본 폴더가 없을 때
+   * @throws NotFoundError(FOLDER_NOT_FOUND) - 폴더가 없을 때
+   * @throws ForbiddenError(FORBIDDEN_FOLDER) - 다른 사용자의 폴더일 때
+   */
+  private async resolveFolderId(
+    userId: number,
+    folderId: number | null | undefined,
+  ): Promise<number> {
+    if (folderId === null || folderId === undefined) {
+      const defaultFolder = await this.folderRepository.findOne({
+        where: { userId, folderTitle: DEFAULT_FOLDER_TITLE },
+        select: { id: true },
+      });
+      if (!defaultFolder) {
+        throw new NotFoundError(
+          'DEFAULT_FOLDER_NOT_FOUND',
+          '기본 폴더가 존재하지 않습니다.',
+        );
+      }
+      return defaultFolder.id;
+    }
+
+    const folder = await this.folderRepository.findOne({
+      where: { id: folderId },
+      select: { id: true, userId: true },
+    });
+    if (!folder) {
+      throw new NotFoundError('FOLDER_NOT_FOUND', '폴더가 존재하지 않습니다.');
+    }
+    if (folder.userId !== userId) {
+      throw new ForbiddenError('FORBIDDEN_FOLDER', '본인 폴더가 아닙니다.');
+    }
+    return folder.id;
   }
 }

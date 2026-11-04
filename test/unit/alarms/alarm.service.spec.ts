@@ -2,28 +2,31 @@ import { EntityManager } from 'typeorm';
 import { AlarmService } from '../../../src/alarms/alarm.service';
 import { UserAlarm } from '../../../src/alarms/user-alarm.entity';
 import { AlarmType, SubTaskStatus } from '../../../src/common/enums';
-import { UserService } from '../../../src/users/user.service';
+import { UserAlarmSetting } from '../../../src/users/entities/user-alarm-setting.entity';
 
 const HOUR = 3600_000;
 const DEADLINE = new Date('2026-10-20T14:59:00.000Z');
 
 describe('AlarmService', () => {
   let manager: Record<string, ReturnType<typeof vi.fn>>;
-  let getAlarmHours: ReturnType<typeof vi.fn>;
+  let findSettings: ReturnType<typeof vi.fn>;
   let service: AlarmService;
 
   beforeEach(() => {
+    // 유저 1만 알림 설정이 있다 (과제 12시간 전, 세부 과제 6시간 전)
+    findSettings = vi
+      .fn()
+      .mockResolvedValue([{ userId: 1, deadlineAlarm: 12, taskAlarm: 6 }]);
     manager = {
       insert: vi.fn(),
       find: vi.fn().mockResolvedValue([]),
       save: vi.fn(),
       delete: vi.fn(),
+      getRepository: vi.fn((entity: unknown) =>
+        entity === UserAlarmSetting ? { find: findSettings } : undefined,
+      ),
     };
-    // 유저 1만 알림 설정이 있다 (과제 12시간 전, 세부 과제 6시간 전)
-    getAlarmHours = vi
-      .fn()
-      .mockResolvedValue(new Map([[1, { deadlineAlarm: 12, taskAlarm: 6 }]]));
-    service = new AlarmService({ getAlarmHours } as unknown as UserService);
+    service = new AlarmService();
   });
 
   const em = () => manager as unknown as EntityManager;
@@ -152,5 +155,15 @@ describe('AlarmService', () => {
       expect.objectContaining({ taskId: 10 }),
     ]);
     expect(alarm.alarmDate).toEqual(new Date(deadline.getTime() - 12 * HOUR));
+  });
+
+  it('알림 대상이 없으면 알림 설정을 조회하지 않는다', async () => {
+    await service.createTaskAlarms(
+      em(),
+      { id: 10, title: '중간 발표', deadline: DEADLINE },
+      [],
+      0,
+    );
+    expect(findSettings).not.toHaveBeenCalled();
   });
 });
