@@ -85,6 +85,16 @@ export const ERROR_CODE = {
     errorCode: 'MAX_FOLDER_LIMIT',
     message: '생성 가능한 폴더의 최대 제한 개수를 초과함',
   },
+  PROTECTED_FOLDER: {
+    status: HttpStatus.BAD_REQUEST,
+    errorCode: 'PROTECTED_FOLDER',
+    message: "기본 폴더('지정안함')를 수정하거나 삭제하려고 시도함",
+  },
+  FOLDER_NOT_EMPTY: {
+    status: HttpStatus.BAD_REQUEST,
+    errorCode: 'FOLDER_NOT_EMPTY',
+    message: '과제가 남아 있는 폴더를 과제 이동 없이 삭제하려고 시도함',
+  },
   INVALID_DATE: {
     status: HttpStatus.BAD_REQUEST,
     errorCode: 'INVALID_DATE',

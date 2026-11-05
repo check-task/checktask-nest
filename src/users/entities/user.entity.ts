@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Provider } from '../../common/enums';
-import { Role } from '../role.enum';
+import { Role } from '../enums/role.enum';
 
 @Entity('User')
 @Index('User_user_id_key', ['id'], { unique: true })

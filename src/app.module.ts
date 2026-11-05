@@ -11,9 +11,11 @@ import { FcmModule } from './common/fcm/fcm.module';
 import { MailModule } from './common/mail/mail.module';
 import { RedisModule } from './common/redis/redis.module';
 import { S3Module } from './common/s3/s3.module';
+import { FolderModule } from './folders/folder.module';
 import { HealthModule } from './health/health.module';
-import { ReferenceModule } from './references/reference.module';
+//import { ReferenceModule } from './references/reference.module';
 import { TaskModule } from './tasks/task.module';
+import { UserModule } from './users/user.module';
 
 @Module({
   imports: [
@@ -30,9 +32,10 @@ import { TaskModule } from './tasks/task.module';
     MailModule,
     ScheduleModule.forRoot(), // cron (alarms/alarm.scheduler.ts)
     HealthModule,
+    UserModule,
+    FolderModule,
     AlarmModule,
-    ReferenceModule,
-    TaskModule,
+    TaskModule
   ],
 })
 export class AppModule {}
