@@ -238,6 +238,22 @@ export const ERROR_CODE = {
     errorCode: 'INVITE_CODE_NOT_FOUND',
     message: '초대 코드에 해당하는 팀 과제가 존재하지 않음',
   },
+  REFERENCE_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    errorCode: 'REFERENCE_NOT_FOUND',
+    message: '요청한 자료(Reference)가 존재하지 않거나 해당 과제의 자료가 아님',
+  },
+  COMMUNICATION_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    errorCode: 'COMMUNICATION_NOT_FOUND',
+    message:
+      '요청한 커뮤니케이션(Communication)이 존재하지 않거나 해당 과제의 커뮤니케이션이 아님',
+  },
+  LOG_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    errorCode: 'LOG_NOT_FOUND',
+    message: '요청한 회의록(Log)이 존재하지 않거나 해당 과제의 회의록이 아님',
+  },
   ALARM_NOT_FOUND: {
     status: HttpStatus.NOT_FOUND,
     errorCode: 'ALARM_NOT_FOUND',
