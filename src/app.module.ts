@@ -13,7 +13,7 @@ import { RedisModule } from './common/redis/redis.module';
 import { S3Module } from './common/s3/s3.module';
 import { FolderModule } from './folders/folder.module';
 import { HealthModule } from './health/health.module';
-//import { ReferenceModule } from './references/reference.module';
+import { ReferenceModule } from './references/reference.module';
 import { TaskModule } from './tasks/task.module';
 import { UserModule } from './users/user.module';
 
@@ -35,7 +35,8 @@ import { UserModule } from './users/user.module';
     UserModule,
     FolderModule,
     AlarmModule,
-    TaskModule
+    ReferenceModule,
+    TaskModule,
   ],
 })
 export class AppModule {}

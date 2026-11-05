@@ -262,6 +262,9 @@ throw new ForbiddenError(); // 인자를 생략하면 기본 errorCode·reason
 | 404 | `USER_NOT_FOUND` | 요청한 정보를 기반으로 DB에서 해당 사용자를 찾을 수 없음 |
 | 404 | `TASK_NOT_FOUND` | 요청한 과제(Task)가 존재하지 않거나 이미 삭제됨 |
 | 404 | `SUBTASK_NOT_FOUND` | 요청한 세부 과제(Subtask)가 존재하지 않거나 이미 삭제됨 |
+| 404 | `REFERENCE_NOT_FOUND` | 요청한 자료(Reference)가 존재하지 않거나 해당 과제의 자료가 아님 |
+| 404 | `COMMUNICATION_NOT_FOUND` | 요청한 커뮤니케이션(Communication)이 존재하지 않거나 해당 과제의 커뮤니케이션이 아님 |
+| 404 | `LOG_NOT_FOUND` | 요청한 회의록(Log)이 존재하지 않거나 해당 과제의 회의록이 아님 |
 | 404 | `ALARM_NOT_FOUND` | 삭제하거나 읽음 처리하려는 대상 알림(Alarm)이 존재하지 않음 |
 | 404 | `FCM_TOKEN_NOT_FOUND` | 푸시를 보낼 사용자의 디바이스(FCM) 토큰이 Redis에 존재하지 않음 |
 | 404 | `FOLDER_NOT_FOUND` | 요청한 폴더(Folder)가 존재하지 않음 |
